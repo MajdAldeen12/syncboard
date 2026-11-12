@@ -1,74 +1,22 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
-
-const FIRST_CARD = "Drag this card to another column";
-const SECOND_CARD = "Press Space on a card, then use the arrow keys to move it";
-const THIRD_CARD = "Double-click a card to edit its text";
-
-function column(page: Page, name: string): Locator {
-  return page.getByRole("region", { name, exact: true });
-}
-
-// While a card is being dragged or is settling after a drop, dnd-kit leaves a
-// hidden copy of it in the list to hold its place. Tests look at real cards.
-const CARD =
-  '[data-card-id]:not([aria-hidden="true"]):not([data-dnd-placeholder])';
-
-function card(page: Page, title: string): Locator {
-  return page.locator(CARD).filter({ hasText: title });
-}
-
-/** Card titles in a column, top to bottom. */
-async function cardsIn(page: Page, name: string): Promise<string[]> {
-  const titles = await column(page, name).locator(CARD).allInnerTexts();
-  return titles.map((title) => title.trim());
-}
-
-async function columnNames(page: Page): Promise<(string | null)[]> {
-  return page
-    .locator("[data-column-id]")
-    .evaluateAll((columns) =>
-      columns.map((column) => column.getAttribute("aria-label")),
-    );
-}
-
-async function centre(locator: Locator): Promise<{ x: number; y: number }> {
-  const box = await locator.boundingBox();
-  if (!box) throw new Error("Element is not visible");
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-}
-
-/** Drags with the mouse in small steps, the way a person would. */
-async function dragWithMouse(
-  page: Page,
-  from: Locator,
-  to: Locator,
-  offset: { x: number; y: number } = { x: 0, y: 0 },
-): Promise<void> {
-  const start = await centre(from);
-  const end = await centre(to);
-
-  await page.mouse.move(start.x, start.y);
-  await page.mouse.down();
-  await page.mouse.move(start.x + 10, start.y + 10, { steps: 5 });
-  await page.mouse.move(end.x + offset.x, end.y + offset.y, { steps: 25 });
-  await page.mouse.up();
-}
-
-/** Lifts the focused card with the keyboard and waits until it is held. */
-async function pickUp(page: Page, title: string): Promise<void> {
-  await page.keyboard.press("Space");
-  await expect(card(page, title)).toHaveAttribute("data-dnd-dragging", "true");
-}
-
-/** Drops the held card with the keyboard and waits until it has settled. */
-async function drop(page: Page, title: string): Promise<void> {
-  await page.keyboard.press("Space");
-  await expect(card(page, title)).not.toHaveAttribute("data-dnd-dragging");
-}
+import { expect, test } from "@playwright/test";
+import {
+  CARD,
+  FIRST_CARD,
+  SECOND_CARD,
+  THIRD_CARD,
+  card,
+  cardsIn,
+  centre,
+  column,
+  columnNames,
+  dragWithMouse,
+  drop,
+  openBoard,
+  pickUp,
+} from "./helpers";
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/demo");
-  await expect(card(page, FIRST_CARD)).toBeVisible();
+  await openBoard(page);
 });
 
 test.describe("dragging with the mouse", () => {

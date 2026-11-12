@@ -28,6 +28,8 @@ export const Card = memo(function Card({
   store,
 }: CardProps) {
   const [editing, setEditing] = useState(false);
+  // A title can be empty for a moment while someone else is retyping it.
+  const name = card.title || "Untitled card";
   const [editButtonRef, requestFocus] =
     useFocusAfterEdit<HTMLButtonElement>(editing);
 
@@ -52,7 +54,7 @@ export const Card = memo(function Card({
       // dnd-kit adds tabindex itself, but only after the first interaction
       // with the page. Cards must be reachable by keyboard from the start.
       tabIndex={0}
-      aria-label={card.title}
+      aria-label={name}
       data-card-id={card.id}
       onDoubleClick={() => setEditing(true)}
       className={`group/card relative shrink-0 rounded-lg bg-white px-2 py-1.5 text-sm shadow-sm ring-1 ring-black/5 outline-offset-1 focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-zinc-800 dark:ring-white/10 ${
@@ -61,25 +63,27 @@ export const Card = memo(function Card({
     >
       {editing ? (
         <TextEditor
+          open={() => store.editCardTitle(card.id)}
           value={card.title}
-          label={`Edit card: ${card.title}`}
+          label={`Edit card: ${name}`}
           maxLength={MAX_TITLE_LENGTH}
           multiline
-          onDone={(title, endedBy) => {
-            if (title !== null) store.updateCard(card.id, { title });
+          onDone={(endedBy) => {
             if (endedBy === "keyboard") requestFocus();
             setEditing(false);
           }}
         />
       ) : (
         <>
-          <p className="px-1 py-0.5 wrap-break-word">{card.title}</p>
+          <p className="px-1 py-0.5 wrap-break-word">
+            {card.title || <span className="text-zinc-400">Untitled</span>}
+          </p>
 
           <div className="absolute top-1 right-1 flex gap-0.5 rounded-md bg-white opacity-0 shadow-sm ring-1 ring-black/5 group-hover/card:opacity-100 focus-within:opacity-100 dark:bg-zinc-800 dark:ring-white/10">
             <button
               ref={editButtonRef}
               type="button"
-              aria-label={`Edit card: ${card.title}`}
+              aria-label={`Edit card: ${name}`}
               onClick={() => setEditing(true)}
               className={`${ACTION_CLASS} hover:text-zinc-900 dark:hover:text-zinc-100`}
             >
@@ -87,7 +91,7 @@ export const Card = memo(function Card({
             </button>
             <button
               type="button"
-              aria-label={`Delete card: ${card.title}`}
+              aria-label={`Delete card: ${name}`}
               onClick={() => store.deleteCard(card.id)}
               className={`${ACTION_CLASS} hover:text-red-600`}
             >

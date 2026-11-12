@@ -7,6 +7,7 @@ catalog:
   eslint: ^9.39.5
   typescript: 5.9.3
   vitest: ^5.1.0
+  yjs: 13.6.33
 
 allowBuilds:
   sharp: false

@@ -4,6 +4,7 @@ import {
   initialOrders,
   orderAtIndex,
   orderBetween,
+  rebaseIndex,
   type Ordered,
 } from "./index";
 
@@ -139,5 +140,39 @@ describe("orderAtIndex", () => {
     }
 
     expect([...list].sort(compareOrdered).map((i) => i.id)).toEqual(expected);
+  });
+});
+
+describe("rebaseIndex", () => {
+  it("returns the same index when the list did not change", () => {
+    // "x" was dropped between b and c.
+    expect(rebaseIndex(["a", "b", "x", "c"], ["a", "b", "c"], "x")).toBe(2);
+    expect(rebaseIndex(["x", "a", "b"], ["a", "b"], "x")).toBe(0);
+    expect(rebaseIndex(["a", "b", "x"], ["a", "b"], "x")).toBe(2);
+  });
+
+  it("ignores the item's own place in the current list", () => {
+    expect(rebaseIndex(["a", "b", "x", "c"], ["x", "a", "b", "c"], "x")).toBe(
+      2,
+    );
+  });
+
+  it("stays after the same item when others were added before it", () => {
+    expect(rebaseIndex(["a", "b", "x", "c"], ["new", "a", "b", "c"], "x")).toBe(
+      3,
+    );
+  });
+
+  it("falls back to an earlier item when the one before it is gone", () => {
+    expect(rebaseIndex(["a", "b", "x", "c"], ["a", "c"], "x")).toBe(1);
+  });
+
+  it("goes ahead of the next item when nothing before it is left", () => {
+    expect(rebaseIndex(["a", "x", "c"], ["new", "c"], "x")).toBe(1);
+  });
+
+  it("goes to the end when none of its neighbours are left", () => {
+    expect(rebaseIndex(["a", "x", "c"], ["new", "other"], "x")).toBe(2);
+    expect(rebaseIndex(["x"], [], "x")).toBe(0);
   });
 });
