@@ -2,7 +2,7 @@
 
 A real-time collaborative kanban board. Several people can drag cards, edit text and see each other's cursors, and edits made offline merge cleanly on reconnect.
 
-> **Status:** early development. The repository currently contains the project foundations only. See [docs/PLAN.md](docs/PLAN.md) for the architecture and milestones.
+> **Status:** early development. A single-user board with drag and drop (mouse, touch and keyboard) works at `/demo`; real-time sync is the next milestone. See [docs/PLAN.md](docs/PLAN.md) for the architecture and milestones.
 
 ## Stack
 
@@ -29,11 +29,12 @@ pnpm dev
 | `pnpm lint`         | ESLint across all packages              |
 | `pnpm typecheck`    | TypeScript across all packages          |
 | `pnpm test`         | Unit tests (Vitest)                     |
+| `pnpm e2e`          | Browser tests (Playwright)              |
 | `pnpm format`       | Format the repository with Prettier     |
 | `pnpm format:check` | Check formatting without changing files |
 
 ## Repository layout
 
 - `apps/web`: the Next.js app
-- `packages/core`: framework-free logic (permissions, and later the Yjs board model), unit tested
+- `packages/core`: framework-free logic (board store, ordering, permissions, and later the Yjs board model), unit tested
 - `docs/`: the build plan and decision records

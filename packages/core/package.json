@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./board": "./src/board/index.ts",
+    "./ordering": "./src/ordering/index.ts",
     "./permissions": "./src/permissions/index.ts"
   },
   "scripts": {
@@ -18,5 +20,9 @@
     "typescript": "catalog:",
     "typescript-eslint": "^8.72.2",
     "vitest": "catalog:"
+  },
+  "dependencies": {
+    "fractional-indexing-jittered": "^1.1.0",
+    "nanoid": "^6.0.2"
   }
 }
