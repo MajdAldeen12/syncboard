@@ -2,7 +2,17 @@
 
 Real-time collaborative kanban web app. Free public tool and portfolio piece: visual polish and engineering depth both matter.
 
-**Keep this file current.** Update "Current status" at the end of every working session and whenever a milestone or decision changes. Work may continue from a different Claude account, so anything not written here or in `docs/` is lost.
+**Keep this file current.** Update "Resume here" and "Current status" at the end of every working session and whenever a milestone or decision changes. Work may continue from a different Claude account, so anything not written here or in `docs/` is lost.
+
+## Resume here (last updated 2026-11-13)
+
+- **State:** `main` holds milestones 0 to 2 (commit `938574c`) and its CI is green. No open pull requests, nothing uncommitted, no work in flight.
+- **Next:** milestone 3 (sync server, Supabase persistence, offline). It has not started. See "Next milestone: M3" below.
+- **Waiting on the owner:**
+  - A development Supabase project, needed for M3 stage 2 (stage 1 needs no accounts).
+  - A look at `/demo` in two tabs of a real browser. M2 was verified by automated tests only.
+  - OK to delete the merged branches `m1-static-board` and `m2-yjs-board` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
+- **First time on a machine:** `pnpm install`, then `pnpm --filter @syncboard/web exec playwright install chromium`. Run the full gate (see "Working a milestone") to confirm a clean start before changing anything.
 
 ## Product
 
@@ -61,7 +71,24 @@ Run from the repo root. Requires Node 22.12+ and pnpm 12 (`packageManager` pins 
 - `pnpm format` / `pnpm format:check`: Prettier
 - One package only: `pnpm --filter @syncboard/core test`
 
-CI (`.github/workflows/ci.yml`) runs format check, lint, typecheck, test and build on pushes to `main` and on pull requests.
+CI (`.github/workflows/ci.yml`) runs format check, lint, typecheck, test and build on pushes to `main` and on pull requests. Browser tests are not in CI yet.
+
+## Working a milestone
+
+1. Read this file and the milestone's section in `docs/PLAN.md`. Cut a branch from an up-to-date `main` (`m3-sync-server`, ...).
+2. Build test-first. Anything timing-sensitive in the browser gets repeated before it is trusted: `pnpm --filter @syncboard/web exec playwright test --repeat-each=5`.
+3. Full gate, all must pass: `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm e2e`.
+4. Update this file ("Resume here", "Current status", "Open items", "Decisions"), then commit on the branch.
+5. Ask the owner before pushing, opening a pull request or merging. Pull requests are squash-merged with the milestone's commit message: `gh pr merge <n> --squash --subject "<title> (#<n>)" --body-file <file>`.
+6. After the merge: `git switch main`, `git pull --ff-only`, and confirm the CI run on `main` passed.
+
+## Next milestone: M3 (sync server, persistence, offline)
+
+The done checks are in `docs/PLAN.md` under "M3". Planned in two stages on branch `m3-sync-server`, one commit each:
+
+- **Stage 1, needs no accounts.** Spike first and record the result in `docs/decisions/` (the folder is still empty): does `y-partyserver` work with `hibernate: true` under `wrangler dev`, is the document reloaded when the Durable Object wakes, and do pending saves finish before it hibernates. The free plan's daily duration limit makes hibernation a requirement; if it does not hold up, stop and report (the agreed fallback is Hocuspocus 4 on Node). Then build `apps/sync` with an in-memory snapshot store, swap in the y-partyserver provider and `y-indexeddb` in `apps/web`, add a connection status indicator, and add `pnpm e2e` to CI.
+- **Stage 2, needs a Supabase project.** The owner creates a development project and puts the pooler and direct connection strings into `apps/sync/.dev.vars` and `apps/web/.env.local` themselves (see `.env.example`). Then `packages/db` (schema from the plan, first migration), a spike on Postgres access from the Durable Object, and `onLoad`/`onSave` including the failed-load rule.
+- **Do not deploy the sync server publicly in M3.** Connections are not authorised until M5. Local `wrangler dev` only.
 
 ## Environment notes
 
@@ -70,7 +97,9 @@ CI (`.github/workflows/ci.yml`) runs format check, lint, typecheck, test and bui
 - pnpm 12 skips package versions published very recently. Pin a slightly older version instead of adding to `minimumReleaseAgeExclude`.
 - Playwright runs with one worker. With several, pages hang before the `load` event on this machine, against both the dev and the production server. The server itself answers concurrent requests in about 30 ms; the cause was not found. Check again on Linux when e2e joins CI (M3).
 - Do not point Playwright at `pnpm dev`: test artifacts written into `apps/web` stall Turbopack.
-- `.claude/launch.json` defines the `web` preview server (port 3000) for Claude's browser pane.
+- `.claude/launch.json` defines the `web` preview server (port 3000) for Claude's browser pane. If port 3000 is busy, a preview or `pnpm dev` from an earlier session is still running.
+- Pushing a change under `.github/workflows` needs the `workflow` scope on the `gh` login. It was granted on this machine; elsewhere the owner runs `gh auth refresh -h github.com -s workflow`.
+- `apps/web/e2e` tests must drive drags with stepped pointer moves (`dragWithMouse`). A single jump from press to release never starts a dnd-kit drag, which is also why Claude's browser-pane drag gesture does not work on the board.
 
 ## Drag and drop: how it works and why
 
@@ -106,7 +135,7 @@ Read this before touching `packages/core/src/board-doc` or the files in `apps/we
 
 ## Current status
 
-- Phase: M2 complete (2026-11-13) on branch `m2-yjs-board`, pushed and open as pull request 2 against `main`. If you are reading this on `main`, that pull request has been merged. M1 was merged through pull request 1. Next after M2 merges: M3 (sync server, Supabase persistence, offline), starting with its spike.
+- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 has not started.
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
 - The board lives at `/demo` in a Yjs document (`createYjsBoardStore`) and syncs between tabs of one browser over a BroadcastChannel. Nothing is saved: the board exists while at least one tab holds it, and a lone reloaded tab starts from the seed again. M3 adds the server and storage.
 - [x] M0 Foundations (repo, CI, tooling)
@@ -132,7 +161,6 @@ Read this before touching `packages/core/src/board-doc` or the files in `apps/we
 - M8: text typed by someone else that arrives while an input method is composing (Chinese, Japanese, Korean keyboards) replaces the field's value and may interrupt the composition. Hold remote edits until `compositionend`.
 - M8: a card or column whose title is empty (possible for a moment while someone retypes it, or after two overlapping deletions) is shown and announced as "Untitled". Check the wording and contrast.
 - Cards whose column was deleted are hidden if the board has no column at all, and reappear in the first column that is added. Rare; decide whether to delete them instead.
-- M3 spike: Durable Object hibernation with y-partyserver; Postgres access from the Worker
 - M3: add `pnpm e2e` to CI (install Chromium with `playwright install --with-deps chromium`) and retest parallel workers there.
 - M6: card description has no UI yet (the field exists in the model and is a `Y.Text`). Planned with the card detail view; it needs an `editCardDescription` session next to `editCardTitle`.
 - M8: drag announcements read out raw ids ("seed-column-1-card-1"); configure dnd-kit's Accessibility plugin to use card and column titles.
@@ -157,7 +185,7 @@ Read this before touching `packages/core/src/board-doc` or the files in `apps/we
 - Drag and drop: `@dnd-kit/react` 0.5.x passed the M1 spike (React 19, built-in keyboard sensor and live-region announcements). The legacy `@dnd-kit/core` fallback was not needed.
 - Ordering: `fractional-indexing-jittered` behind `packages/core/src/ordering`. Ids: `nanoid`. Seed content has fixed ids and unjittered keys so it is identical wherever it is built.
 - `packages/core` exports TypeScript source; `apps/web` compiles it via `transpilePackages`.
-- Work on a branch per milestone (`m1-static-board`, ...), merged to `main` by pull request.
+- Work on a branch per milestone (`m1-static-board`, ...), squash-merged to `main` by pull request. One fresh Claude session per milestone has worked well: this file plus `docs/PLAN.md` is enough of a brief.
 - Remote changes during a local drag (M2): the board is frozen from drag start until dnd-kit is idle; changes from others are applied to the document at once but drawn afterwards. The drop position is rebased onto the live board by neighbours. Chosen over redrawing mid-drag because dnd-kit moves the same DOM nodes, and over dropping at the raw index because the list may have changed.
 - Titles (M2): column titles are `Y.Text` like card titles, a change from the first plan (`docs/PLAN.md` is updated). Editing is live: each keystroke is written and shown to others. Escape takes back only what that edit typed; a blank result is refused the same way.
 - `BoardStore` (M2) gained `editCardTitle` and `editColumnTitle`, which return a `TextSession` (`getText`, `splice`, `subscribe`, `commit`, `cancel`). `renameColumn` and `updateCard` remain for setting a finished value. The in-memory store implements sessions too, without merge.
