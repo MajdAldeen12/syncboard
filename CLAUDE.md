@@ -67,8 +67,8 @@ CI (`.github/workflows/ci.yml`) runs format check, lint, typecheck, test and bui
 
 ## Current status
 
-- Phase: M0 is done locally (2026-11-12). The public repo https://github.com/MajdAldeen12/syncboard exists and is set as `origin`, but it is still empty: the first push was rejected because the `gh` token lacks the `workflow` scope needed to upload `.github/workflows/ci.yml`. The owner must run `gh auth refresh -h github.com -s workflow`, then `git push -u origin main`. Next: confirm CI is green, then start M1.
-- [ ] M0 Foundations: all local checks pass. Remaining: first push and a green CI run.
+- Phase: M0 complete (2026-11-12). Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`, branch `main`). First CI run is green. Next: M1, starting with the `@dnd-kit/react` spike.
+- [x] M0 Foundations (repo, CI, tooling)
 - [ ] M1 Static board with drag and drop
 - [ ] M2 State in Yjs, two tabs in sync
 - [ ] M3 Sync server + Supabase persistence + offline
