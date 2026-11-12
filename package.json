@@ -12,6 +12,7 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
+    "e2e": "pnpm --filter @syncboard/web e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

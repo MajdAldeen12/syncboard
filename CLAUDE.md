@@ -21,7 +21,8 @@ Multiple people drag cards, edit text and see each other's cursors and presence.
 
 - `apps/web`: Next.js app. `(marketing)` = landing, `(app)` = boards, `src/server` = server-only code
 - `apps/sync`: Cloudflare Worker, one Durable Object per board (added in M3)
-- `packages/core`: pure TS: `board-doc`, `permissions`, `ticket`, `presence`, `text-binding`
+- `apps/web/src/features/board`: the board UI. `apps/web/e2e`: Playwright tests
+- `packages/core`: pure TS. Exists now: `board` (store interface, in-memory store, seed), `ordering`, `permissions`. Planned: `board-doc` (Yjs), `ticket`, `presence`, `text-binding`
 - `packages/db`: Drizzle schema, client, queries (added in M3)
 - `docs/PLAN.md`: full plan with milestones and "done" checks. `docs/decisions/`: decision records
 
@@ -54,6 +55,7 @@ Run from the repo root. Requires Node 22.12+ and pnpm 12 (`packageManager` pins 
 - `pnpm lint`: ESLint in every package
 - `pnpm typecheck`: `next typegen` + `tsc --noEmit` in web, `tsc --noEmit` in core
 - `pnpm test`: Vitest in every package that has tests
+- `pnpm e2e`: Playwright browser tests in `apps/web/e2e`. Builds the app, serves it on port 3100, runs one test at a time (about 30 s)
 - `pnpm format` / `pnpm format:check`: Prettier
 - One package only: `pnpm --filter @syncboard/core test`
 
@@ -64,12 +66,30 @@ CI (`.github/workflows/ci.yml`) runs format check, lint, typecheck, test and bui
 - Windows 11, PowerShell. pnpm was installed with `npm install -g pnpm@12.18.0`; the corepack bundled with Node 22.19 cannot launch pnpm 12.
 - The Next.js scaffold enabled `cacheComponents` and `partialPrefetching` in `apps/web/next.config.ts`. Read `apps/web/node_modules/next/dist/docs/` before writing data-fetching or auth code (see `apps/web/AGENTS.md`).
 - pnpm 12 skips package versions published very recently. Pin a slightly older version instead of adding to `minimumReleaseAgeExclude`.
+- Playwright runs with one worker. With several, pages hang before the `load` event on this machine, against both the dev and the production server. The server itself answers concurrent requests in about 30 ms; the cause was not found. Check again on Linux when e2e joins CI (M3).
+- Do not point Playwright at `pnpm dev`: test artifacts written into `apps/web` stall Turbopack.
+- `.claude/launch.json` defines the `web` preview server (port 3000) for Claude's browser pane.
+
+## Drag and drop: how it works and why
+
+Read this before touching `apps/web/src/features/board/board.tsx`. Each point cost a debugging session.
+
+- **Pattern:** dnd-kit's "multiple sortable lists" guide. While a card is dragged, `onDragOver` updates a local draft (`dragLayout`) with `move()` from `@dnd-kit/helpers`. The store is written once, in `onDragEnd`, from `source.group` and `source.index`. Columns are reordered by dnd-kit itself and written on drop.
+- **Do not** drop the draft and rely on dnd-kit's own preview for cards (the "without the move helper" example). Cross-column drops then corrupt the DOM: cards vanish after React re-renders.
+- **Cancel (Escape):** the draft is kept until `useDragOperation().source` is null, then discarded. Discarding it inside `onDragEnd` re-parents the card while dnd-kit is still cleaning up, and the card can stay hidden. This failed about 1 run in 4 before the fix; after it, one failure was seen once and not again in 117 consecutive passes.
+- **Cards are not buttons.** dnd-kit will not start a pointer drag from a `<button>`, so the card title is plain text inside a `role="group"` element with `tabIndex={0}`. Editing is by the pencil button or double-click.
+- **No `disabled` on the sortable while editing.** It sets `aria-disabled` on the card, which marks the text field inside as disabled too.
+- **Cards are direct children of the column's list container** (no `<li>` wrapper), because dnd-kit reorders sibling elements.
+- **Keyboard:** Space or Enter picks up, arrows move (one card or one column at a time), Space drops, Escape cancels. After a keyboard drop or cancel, focus is put back on the moved card or column handle.
+- **Tests wait for what a person would see** between key presses (`pickUp`, `drop` helpers). dnd-kit processes a move over a frame or two; keys sent with no gap can be lost.
 
 ## Current status
 
-- Phase: M0 complete (2026-11-12). Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`, branch `main`). First CI run is green. Next: M1, starting with the `@dnd-kit/react` spike.
+- Phase: M1 complete (2026-11-13) and merged to `main` through pull request 1. Next: M2 (board state in Yjs, two tabs in sync), on a new branch cut from `main`.
+- Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
+- The board lives at `/demo` and is held in memory per tab (`createLocalBoardStore`). M2 replaces that store with a Yjs-backed one behind the same `BoardStore` interface.
 - [x] M0 Foundations (repo, CI, tooling)
-- [ ] M1 Static board with drag and drop
+- [x] M1 Static board with drag and drop: mouse, touch and keyboard drag for cards and columns, inline editing, add and delete. 58 unit tests, 13 Playwright tests.
 - [ ] M2 State in Yjs, two tabs in sync
 - [ ] M3 Sync server + Supabase persistence + offline
 - [ ] M4 Presence and cursors
@@ -81,8 +101,15 @@ CI (`.github/workflows/ci.yml`) runs format check, lint, typecheck, test and bui
 
 ## Open items
 
-- M1 spike: `@dnd-kit/react` keyboard support and stability (fallback: legacy `@dnd-kit/core`)
+- M2: decide how remote changes are shown while a local drag is in progress (the drag draft is a copy taken at drag start).
+- M2: `BoardStore.updateCard` replaces whole strings. Character-level merging needs `Y.Text` and the planned `text-binding` module.
 - M3 spike: Durable Object hibernation with y-partyserver; Postgres access from the Worker
+- M3: add `pnpm e2e` to CI (install Chromium with `playwright install --with-deps chromium`) and retest parallel workers there.
+- M6: card description has no UI yet (the field exists in the model). Planned with the card detail view.
+- M8: drag announcements read out raw ids ("seed-column-1-card-1"); configure dnd-kit's Accessibility plugin to use card and column titles.
+- M8: cards are a `role="group"` in a plain container, not list items. Review with a screen reader.
+- Deleting a column with cards uses `window.confirm`. Replace with undo or a proper dialog (M6).
+- ESLint 9 is marked deprecated on npm; it is what create-next-app 16.4.6 installs. Move to ESLint 10 when `eslint-config-next` is confirmed to work with it.
 - Free-tier Supabase pauses after about a week of low activity: keep-alive cron + README note (M9)
 - Hosting accounts (Cloudflare, Supabase, Vercel) and domain not yet confirmed
 - `pnpm-workspace.yaml` has a leftover `minimumReleaseAgeExclude: prettier@3.10.1` entry added by pnpm; prettier is now pinned to 3.9.10, so the entry can be deleted once the owner agrees
@@ -98,3 +125,7 @@ CI (`.github/workflows/ci.yml`) runs format check, lint, typecheck, test and bui
 - ESLint 9, one flat config per package (`apps/web`, `packages/core`) instead of a single root config.
 - Permission matrix (`packages/core/src/permissions`): viewer reads; editor reads and edits; only the owner deletes the board or manages members and links. Unknown or missing roles are denied.
 - Shared dependency versions live in the `catalog:` section of `pnpm-workspace.yaml`.
+- Drag and drop: `@dnd-kit/react` 0.5.x passed the M1 spike (React 19, built-in keyboard sensor and live-region announcements). The legacy `@dnd-kit/core` fallback was not needed.
+- Ordering: `fractional-indexing-jittered` behind `packages/core/src/ordering`. Ids: `nanoid`. Seed content has fixed ids and unjittered keys so it is identical wherever it is built.
+- `packages/core` exports TypeScript source; `apps/web` compiles it via `transpilePackages`.
+- Work on a branch per milestone (`m1-static-board`, ...), merged to `main` by pull request.
