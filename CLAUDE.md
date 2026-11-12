@@ -85,7 +85,7 @@ Read this before touching `apps/web/src/features/board/board.tsx`. Each point co
 
 ## Current status
 
-- Phase: M1 complete locally (2026-11-13) on branch `m1-static-board`. It is committed but **not pushed and not merged**; `main` on GitHub still holds M0 only. Next: push the branch, open a PR, merge when CI is green, then start M2.
+- Phase: M1 complete (2026-11-13) and merged to `main` through pull request 1. Next: M2 (board state in Yjs, two tabs in sync), on a new branch cut from `main`.
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
 - The board lives at `/demo` and is held in memory per tab (`createLocalBoardStore`). M2 replaces that store with a Yjs-backed one behind the same `BoardStore` interface.
 - [x] M0 Foundations (repo, CI, tooling)
