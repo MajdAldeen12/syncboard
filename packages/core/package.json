@@ -5,8 +5,10 @@
   "type": "module",
   "exports": {
     "./board": "./src/board/index.ts",
+    "./board-doc": "./src/board-doc/index.ts",
     "./ordering": "./src/ordering/index.ts",
-    "./permissions": "./src/permissions/index.ts"
+    "./permissions": "./src/permissions/index.ts",
+    "./text-binding": "./src/text-binding/index.ts"
   },
   "scripts": {
     "lint": "eslint",
@@ -23,6 +25,7 @@
   },
   "dependencies": {
     "fractional-indexing-jittered": "^1.1.0",
-    "nanoid": "^6.0.2"
+    "nanoid": "^6.0.2",
+    "yjs": "catalog:"
   }
 }

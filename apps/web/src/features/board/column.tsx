@@ -32,12 +32,15 @@ export function Column({ column, cards, index, store }: ColumnProps) {
     collisionPriority: CollisionPriority.Low,
   });
 
+  // A title can be empty for a moment while someone else is retyping it.
+  const name = column.title || "Untitled column";
+
   function deleteColumn() {
     const count = cards.length;
     const warning =
       count === 1
-        ? `Delete "${column.title}" and the card in it?`
-        : `Delete "${column.title}" and the ${count} cards in it?`;
+        ? `Delete "${name}" and the card in it?`
+        : `Delete "${name}" and the ${count} cards in it?`;
     if (count === 0 || window.confirm(warning)) store.deleteColumn(column.id);
   }
 
@@ -45,7 +48,7 @@ export function Column({ column, cards, index, store }: ColumnProps) {
     <section
       ref={ref}
       data-column-id={column.id}
-      aria-label={column.title}
+      aria-label={name}
       className={`flex max-h-full w-72 shrink-0 flex-col rounded-xl bg-zinc-100 dark:bg-zinc-900 ${
         isDragging ? "opacity-80 shadow-lg" : ""
       }`}
@@ -55,7 +58,7 @@ export function Column({ column, cards, index, store }: ColumnProps) {
           ref={handleRef}
           type="button"
           data-drag-handle
-          aria-label={`Reorder column ${column.title}`}
+          aria-label={`Reorder column ${name}`}
           className="flex size-7 shrink-0 cursor-grab items-center justify-center rounded text-zinc-400 outline-offset-1 hover:bg-zinc-200 hover:text-zinc-600 focus-visible:outline-2 focus-visible:outline-blue-600 active:cursor-grabbing dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
         >
           <GripIcon />
@@ -63,10 +66,10 @@ export function Column({ column, cards, index, store }: ColumnProps) {
 
         <h2 className="min-w-0 flex-1 text-sm font-semibold">
           <InlineText
+            open={() => store.editColumnTitle(column.id)}
             value={column.title}
-            label={`Rename column ${column.title}`}
+            label={`Rename column ${name}`}
             maxLength={MAX_TITLE_LENGTH}
-            onCommit={(title) => store.renameColumn(column.id, title)}
           />
         </h2>
 
@@ -77,7 +80,7 @@ export function Column({ column, cards, index, store }: ColumnProps) {
 
         <button
           type="button"
-          aria-label={`Delete column ${column.title}`}
+          aria-label={`Delete column ${name}`}
           onClick={deleteColumn}
           className="flex size-7 shrink-0 items-center justify-center rounded text-zinc-400 outline-offset-1 hover:bg-zinc-200 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-blue-600 dark:hover:bg-zinc-800"
         >

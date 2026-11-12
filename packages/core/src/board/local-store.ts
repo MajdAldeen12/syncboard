@@ -1,6 +1,14 @@
 import { nanoid } from "nanoid";
 import { orderAtIndex } from "../ordering/index";
+import {
+  applySplice,
+  diffText,
+  type TextSession,
+  type TextSplice,
+} from "../text-binding/index";
+import { cardPlacement, columnPlacement } from "./placement";
 import { selectBoard } from "./select";
+import { cleanTitle, fitSplice, truncate } from "./text";
 import {
   MAX_DESCRIPTION_LENGTH,
   MAX_TITLE_LENGTH,
@@ -13,24 +21,6 @@ import {
 export interface LocalBoardStoreOptions {
   /** Generates ids for new columns and cards. Defaults to random ids. */
   readonly createId?: () => string;
-}
-
-/** Cuts text to `max` UTF-16 units without splitting a surrogate pair. */
-function truncate(text: string, max: number): string {
-  if (text.length <= max) return text;
-  const last = text.charCodeAt(max - 1);
-  const splitsPair = last >= 0xd800 && last <= 0xdbff;
-  return text.slice(0, splitsPair ? max - 1 : max);
-}
-
-/** A trimmed, length-capped title, or null if nothing is left. */
-function cleanTitle(raw: string): string | null {
-  const title = truncate(raw.trim(), MAX_TITLE_LENGTH);
-  return title.length > 0 ? title : null;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(value, max));
 }
 
 function omit<T>(
@@ -63,23 +53,113 @@ export function createLocalBoardStore(
     for (const listener of [...listeners]) listener();
   }
 
+  function subscribe(listener: () => void): () => void {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }
+
   // Ids arrive from the UI. `Object.hasOwn` keeps a stray "constructor" or
   // "__proto__" from matching something on the prototype.
   const column = (id: string) =>
     Object.hasOwn(state.columns, id) ? state.columns[id] : undefined;
   const card = (id: string) =>
     Object.hasOwn(state.cards, id) ? state.cards[id] : undefined;
-  const columnView = (id: string) => view.columns.find((c) => c.id === id);
+
+  function setColumnTitle(columnId: string, title: string): void {
+    const current = column(columnId);
+    if (!current || title === current.title) return;
+    commit({
+      ...state,
+      columns: { ...state.columns, [columnId]: { ...current, title } },
+    });
+  }
+
+  function setCardTitle(cardId: string, title: string): void {
+    const current = card(cardId);
+    if (!current || title === current.title) return;
+    commit({
+      ...state,
+      cards: { ...state.cards, [cardId]: { ...current, title } },
+    });
+  }
+
+  /**
+   * A session over one title. Nobody else can be typing here, so taking an
+   * edit back simply restores the title the session opened on.
+   */
+  function editTitle(
+    read: () => string | undefined,
+    write: (title: string) => void,
+  ): TextSession | null {
+    const opened = read();
+    if (opened === undefined) return null;
+
+    const watchers = new Set<(splices: readonly TextSplice[]) => void>();
+    // The text as this session last saw it. A difference means that
+    // something other than the session changed the title.
+    let seen = opened;
+    let ended = false;
+
+    const stopWatching = subscribe(() => {
+      const current = read();
+      if (current === undefined || current === seen) return;
+      const change = diffText(seen, current);
+      seen = current;
+      if (change) for (const watcher of [...watchers]) watcher([change]);
+    });
+
+    function end(): void {
+      ended = true;
+      watchers.clear();
+      stopWatching();
+    }
+
+    return {
+      getText: () => read() ?? seen,
+
+      splice(index, remove, insert) {
+        const current = read();
+        if (ended || current === undefined) return;
+        const edit = fitSplice(
+          current,
+          index,
+          remove,
+          insert,
+          MAX_TITLE_LENGTH,
+        );
+        if (!edit) return;
+        seen = applySplice(current, edit);
+        write(seen);
+      },
+
+      subscribe(listener) {
+        if (ended) return () => {};
+        watchers.add(listener);
+        return () => {
+          watchers.delete(listener);
+        };
+      },
+
+      commit() {
+        if (ended) return;
+        end();
+        const current = read();
+        if (current !== undefined) write(cleanTitle(current) ?? opened);
+      },
+
+      cancel() {
+        if (ended) return;
+        end();
+        write(opened);
+      },
+    };
+  }
 
   return {
     getSnapshot: () => view,
-
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
+    subscribe,
 
     addColumn(rawTitle) {
       const title = cleanTitle(rawTitle);
@@ -95,14 +175,15 @@ export function createLocalBoardStore(
     },
 
     renameColumn(columnId, rawTitle) {
-      const current = column(columnId);
       const title = cleanTitle(rawTitle);
-      if (!current || title === null || title === current.title) return;
+      if (title !== null) setColumnTitle(columnId, title);
+    },
 
-      commit({
-        ...state,
-        columns: { ...state.columns, [columnId]: { ...current, title } },
-      });
+    editColumnTitle(columnId) {
+      return editTitle(
+        () => column(columnId)?.title,
+        (title) => setColumnTitle(columnId, title),
+      );
     },
 
     deleteColumn(columnId) {
@@ -117,14 +198,9 @@ export function createLocalBoardStore(
 
     moveColumn(columnId, toIndex) {
       const current = column(columnId);
-      if (!current) return;
+      const order = columnPlacement(view, columnId, toIndex);
+      if (!current || order === null) return;
 
-      const siblings = view.columns.filter((c) => c.id !== columnId);
-      const from = view.columns.findIndex((c) => c.id === columnId);
-      const to = clamp(toIndex, 0, siblings.length);
-      if (to === from) return;
-
-      const order = orderAtIndex(siblings, to);
       commit({
         ...state,
         columns: { ...state.columns, [columnId]: { ...current, order } },
@@ -132,7 +208,7 @@ export function createLocalBoardStore(
     },
 
     addCard(columnId, rawTitle) {
-      const target = columnView(columnId);
+      const target = view.columns.find((c) => c.id === columnId);
       const title = cleanTitle(rawTitle);
       if (!target || title === null) return null;
 
@@ -170,6 +246,13 @@ export function createLocalBoardStore(
       });
     },
 
+    editCardTitle(cardId) {
+      return editTitle(
+        () => card(cardId)?.title,
+        (title) => setCardTitle(cardId, title),
+      );
+    },
+
     deleteCard(cardId) {
       if (!card(cardId)) return;
 
@@ -178,18 +261,16 @@ export function createLocalBoardStore(
 
     moveCard(cardId, toColumnId, toIndex) {
       const current = card(cardId);
-      const target = columnView(toColumnId);
-      if (!current || !target) return;
+      if (!current) return;
+      const order = cardPlacement(
+        view,
+        cardId,
+        current.columnId,
+        toColumnId,
+        toIndex,
+      );
+      if (order === null) return;
 
-      const siblings = target.cards.filter((c) => c.id !== cardId);
-      const to = clamp(toIndex, 0, siblings.length);
-      const from =
-        current.columnId === toColumnId
-          ? target.cards.findIndex((c) => c.id === cardId)
-          : -1;
-      if (to === from) return;
-
-      const order = orderAtIndex(siblings, to);
       commit({
         ...state,
         cards: {

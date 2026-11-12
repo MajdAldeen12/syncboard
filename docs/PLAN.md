@@ -62,13 +62,15 @@ The sync server holds only the public key, so a compromised sync server cannot m
 
 ```
 meta    : Y.Map { schemaVersion: 1, title: string }
-columns : Y.Map<columnId, Y.Map { title: string, order: string }>
+columns : Y.Map<columnId, Y.Map { title: Y.Text, order: string }>
 cards   : Y.Map<cardId,  Y.Map { columnId, order, title: Y.Text, description: Y.Text,
                                  createdBy, createdAt }>
 ```
 
-- **Moves never duplicate.** A move sets `columnId` and `order` in one transaction (last writer wins per key). Ordering uses jittered fractional-index keys with card id as the tie-break. Array delete-and-insert is avoided because concurrent moves would duplicate cards.
-- **Orphans are handled in the view.** Deleting a column deletes its cards in the same transaction. A card that arrives later pointing at a deleted column is re-homed to the first column by a pure `normalizeBoard()` selector; nothing is written back.
+- **Moves never duplicate.** A move sets `columnId` and `order` in one transaction (last writer wins per key). Both keys are written on every move, even within one column, so the same writer wins both and a card never ends up in one person's column at another's position. Ordering uses jittered fractional-index keys with card id as the tie-break. Array delete-and-insert is avoided because concurrent moves would duplicate cards.
+- **Orphans are handled in the view.** Deleting a column deletes the cards shown in it in the same transaction. A card that arrives later pointing at a deleted column is re-homed to the first column by a pure `normalizeBoard()` selector; nothing is written back. Moving such a card writes its column again.
+- **Titles are `Y.Text`, for columns as well as cards** (changed in M2; the first draft had column titles as plain strings). They are edited live through a text session, so two people typing in one title both keep their words.
+- **Starting content is one deterministic update.** `encodeBoardState()` writes a board under a fixed client id with sorted ids, so every client that applies it holds identical Yjs structs and later syncs merge instead of duplicating the starting cards.
 - **Document generation.** `boards.doc_generation` identifies the current document. IndexedDB is keyed `board:<id>:<gen>`, and the ticket carries `gen`. Resetting the demo board bumps the generation and writes a fresh seed snapshot, so stale local copies are discarded instead of merged back in.
 - **Board title** lives in `meta.title`; the sync server copies it to `boards.title` when it saves, for the dashboard list.
 

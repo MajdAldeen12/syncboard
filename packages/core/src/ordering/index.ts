@@ -79,3 +79,32 @@ export function orderAtIndex(
 
   return orderBetween(before, after);
 }
+
+/**
+ * Translates a position from one arrangement of a list to another.
+ *
+ * `planned` is the list as someone arranged it, with `id` where they put it.
+ * `current` is the list as it is now, which may have gained or lost items
+ * in the meantime. The result is the index that puts `id` next to the same
+ * neighbours: after the nearest item before it that still exists, else
+ * ahead of the nearest item after it, else at the end. It counts positions
+ * among the other items, which is what `orderAtIndex` expects.
+ */
+export function rebaseIndex(
+  planned: readonly string[],
+  current: readonly string[],
+  id: string,
+): number {
+  const others = current.filter((other) => other !== id);
+  const position = planned.indexOf(id);
+
+  for (let i = position - 1; i >= 0; i--) {
+    const at = others.indexOf(planned[i]!);
+    if (at !== -1) return at + 1;
+  }
+  for (let i = position + 1; i < planned.length; i++) {
+    const at = others.indexOf(planned[i]!);
+    if (at !== -1) return at;
+  }
+  return others.length;
+}

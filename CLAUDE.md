@@ -21,8 +21,9 @@ Multiple people drag cards, edit text and see each other's cursors and presence.
 
 - `apps/web`: Next.js app. `(marketing)` = landing, `(app)` = boards, `src/server` = server-only code
 - `apps/sync`: Cloudflare Worker, one Durable Object per board (added in M3)
-- `apps/web/src/features/board`: the board UI. `apps/web/e2e`: Playwright tests
-- `packages/core`: pure TS. Exists now: `board` (store interface, in-memory store, seed), `ordering`, `permissions`. Planned: `board-doc` (Yjs), `ticket`, `presence`, `text-binding`
+- `apps/web/src/features/board`: the board UI. `apps/web/e2e`: Playwright tests (`board.spec.ts` one tab, `sync.spec.ts` two tabs, `helpers.ts` shared)
+- `apps/web/src/lib`: `broadcast-provider.ts` (Yjs sync between tabs, replaced by the server provider in M3), `bind-text-field.ts` (ties a text field to a `TextSession`)
+- `packages/core`: pure TS. Exists now: `board` (store interface, in-memory store, seed, `store-contract.ts` = the tests every store must pass), `board-doc` (Yjs schema, mutations, state reader, `normalizeBoard`, Yjs store, `testing.ts` = test helpers), `ordering`, `permissions`, `text-binding` (text diff, caret shift, `TextSession` type). Planned: `ticket`, `presence`
 - `packages/db`: Drizzle schema, client, queries (added in M3)
 - `docs/PLAN.md`: full plan with milestones and "done" checks. `docs/decisions/`: decision records
 
@@ -30,7 +31,8 @@ Multiple people drag cards, edit text and see each other's cursors and presence.
 
 - Cards and columns live only in the Yjs doc. Postgres holds metadata and one snapshot row per board.
 - `apps/web` decides access and signs a 60-second Ed25519 ticket. `apps/sync` verifies it with the public key, enforces read-only for viewers, and saves snapshots. The sync server makes no membership queries.
-- Card moves set `columnId` + `order` (fractional index) in one transaction. Never delete-and-insert in a Y.Array.
+- Card moves set `columnId` + `order` (fractional index) in one transaction, always both. Never delete-and-insert in a Y.Array.
+- Card and column titles are `Y.Text`, edited live through a `TextSession` (`BoardStore.editCardTitle` / `editColumnTitle`).
 - `boards.doc_generation` identifies the current doc; IndexedDB and tickets are keyed by it.
 - If a snapshot fails to load, the room rejects connections. It never serves an empty doc.
 
@@ -74,23 +76,42 @@ CI (`.github/workflows/ci.yml`) runs format check, lint, typecheck, test and bui
 
 Read this before touching `apps/web/src/features/board/board.tsx`. Each point cost a debugging session.
 
-- **Pattern:** dnd-kit's "multiple sortable lists" guide. While a card is dragged, `onDragOver` updates a local draft (`dragLayout`) with `move()` from `@dnd-kit/helpers`. The store is written once, in `onDragEnd`, from `source.group` and `source.index`. Columns are reordered by dnd-kit itself and written on drop.
+- **Pattern:** dnd-kit's "multiple sortable lists" guide. While a card is dragged, `onDragOver` updates a local draft (`drag.layout`) with `move()` from `@dnd-kit/helpers`. The store is written once, in `onDragEnd`, from `source.group` and `source.index`. Columns are reordered by dnd-kit itself and written on drop.
+- **The board is frozen while dragging (M2).** `drag.board` is the snapshot taken at drag start; it and the draft are what is drawn until dnd-kit is idle. Changes from other tabs wait in the store. On drop, `rebaseIndex` carries the drop index over to the live board by neighbours.
 - **Do not** drop the draft and rely on dnd-kit's own preview for cards (the "without the move helper" example). Cross-column drops then corrupt the DOM: cards vanish after React re-renders.
-- **Cancel (Escape):** the draft is kept until `useDragOperation().source` is null, then discarded. Discarding it inside `onDragEnd` re-parents the card while dnd-kit is still cleaning up, and the card can stay hidden. This failed about 1 run in 4 before the fix; after it, one failure was seen once and not again in 117 consecutive passes.
+- **Drop and cancel (Escape):** the drag view is kept until `useDragOperation().source` is null, then discarded (`WhenDragIdle`). Discarding it inside `onDragEnd` re-parents the card while dnd-kit is still cleaning up, and the card can stay hidden. For cancel this failed about 1 run in 4 before the fix; after it, one failure was seen once and not again in 117 consecutive passes. Since M2 a drop waits the same way, because the live board may differ from what was drawn; with that change all 22 browser tests passed 6 times in a row (132 runs, 2026-11-13).
 - **Cards are not buttons.** dnd-kit will not start a pointer drag from a `<button>`, so the card title is plain text inside a `role="group"` element with `tabIndex={0}`. Editing is by the pencil button or double-click.
 - **No `disabled` on the sortable while editing.** It sets `aria-disabled` on the card, which marks the text field inside as disabled too.
 - **Cards are direct children of the column's list container** (no `<li>` wrapper), because dnd-kit reorders sibling elements.
 - **Keyboard:** Space or Enter picks up, arrows move (one card or one column at a time), Space drops, Escape cancels. After a keyboard drop or cancel, focus is put back on the moved card or column handle.
 - **Tests wait for what a person would see** between key presses (`pickUp`, `drop` helpers). dnd-kit processes a move over a frame or two; keys sent with no gap can be lost.
+- **Mouse tests use screen coordinates.** The board scrolls sideways once it is wider than the window, so `dragWithMouse` scrolls its source into view first. A press at an off-screen position silently misses.
+
+## Yjs board: how it works and why
+
+Read this before touching `packages/core/src/board-doc` or the files in `apps/web/src/lib`.
+
+- **One store interface, two stores.** The UI talks to `BoardStore` only. `createYjsBoardStore(doc)` is the real one; `createLocalBoardStore` stays as the reference and for server rendering. Both run the same tests from `board/store-contract.ts`. Add shared behaviour there, not in one store's test file.
+- **Starting content is one deterministic update.** `encodeBoardState(state)` writes the board under fixed client id 1 with sorted ids, so every tab that applies it holds identical Yjs structs and tabs merge. **Do not** seed a document with ordinary writes per client: each tab would add its own copy and one copy would overwrite the other.
+- **Tabs that start from different seed content must not sync.** Same struct ids with different content corrupt a Yjs document. The BroadcastChannel name therefore contains a fingerprint of the seed update. M3 replaces this with the server snapshot and `doc_generation`.
+- **No `new Y.Doc()` during server rendering.** It draws a random client id, and with `cacheComponents` Next.js rejects random values in a prerendered page. `demo-board.tsx` uses the in-memory store on the server and the Yjs store in the browser; both start from the same seed, so hydration matches.
+- **One copy of Yjs.** `yjs` is pinned in the `catalog:` and used by both `packages/core` and `apps/web`. Two copies break Yjs's `instanceof` checks.
+- **A move always writes both `columnId` and `order`.** Yjs keeps one winner per key. Written together every time, the same client wins both. Writing only `order` for a move inside a column let one person's column pair with another's position (a test covers it with client ids both ways round).
+- **Cards whose column is gone** are shown in the first column by `normalizeBoard`, in the view only. `deleteColumn` deletes the cards shown in the column, including these. Moving one writes its column again. With no column at all they are hidden.
+- **Text sessions.** Typing writes to the `Y.Text` at once under an origin unique to the session. Escape (`cancel`) and a blank result (`commit`) take back that session's edits with a `Y.UndoManager` tracking only that origin, so other people's edits to the same title survive. `renameColumn` and `updateCard` still exist; they apply the smallest diff, not a whole-string replace.
+- **The text field is uncontrolled.** `bindTextField` listens to `input`, diffs against what the field last showed (`diffText`, with the caret to settle repeated characters, never splitting a surrogate pair) and moves the caret through remote edits with `shiftIndex`. The field's accessible name is fixed when it opens; a name that followed the text broke the tests' locators and would change under a screen reader on every keystroke.
+- **The store rereads the whole document on every Yjs `update`** and reuses unchanged records (`readBoardState(doc, previous)`), so unchanged cards keep their object identity and `memo` skips them. Entries of the wrong shape are skipped, not trusted.
+- **During a drag the board is frozen.** `board.tsx` draws the snapshot taken at drag start plus the drag draft until dnd-kit is idle again, for drops as well as cancels. Remote changes are in the document but not drawn until then. On drop the index is carried over to the live board by neighbours (`rebaseIndex`), so the card lands next to the cards it was dropped next to.
+- **Convergence tests** (`board-doc/convergence.test.ts`) seed `Math.random` so runs repeat. They passed on first run, so each rule was then broken on purpose to see the tests fail: position-only moves, no `normalizeBoard`, whole-string text writes, cancel by rewriting the old text. Do the same when adding a rule.
 
 ## Current status
 
-- Phase: M1 complete (2026-11-13) and merged to `main` through pull request 1. Next: M2 (board state in Yjs, two tabs in sync), on a new branch cut from `main`.
+- Phase: M2 complete (2026-11-13) on branch `m2-yjs-board`, pushed and open as pull request 2 against `main`. If you are reading this on `main`, that pull request has been merged. M1 was merged through pull request 1. Next after M2 merges: M3 (sync server, Supabase persistence, offline), starting with its spike.
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
-- The board lives at `/demo` and is held in memory per tab (`createLocalBoardStore`). M2 replaces that store with a Yjs-backed one behind the same `BoardStore` interface.
+- The board lives at `/demo` in a Yjs document (`createYjsBoardStore`) and syncs between tabs of one browser over a BroadcastChannel. Nothing is saved: the board exists while at least one tab holds it, and a lone reloaded tab starts from the seed again. M3 adds the server and storage.
 - [x] M0 Foundations (repo, CI, tooling)
 - [x] M1 Static board with drag and drop: mouse, touch and keyboard drag for cards and columns, inline editing, add and delete. 58 unit tests, 13 Playwright tests.
-- [ ] M2 State in Yjs, two tabs in sync
+- [x] M2 State in Yjs, two tabs in sync: Yjs document model and store, live title editing with `Y.Text`, BroadcastChannel provider, board frozen during a drag. 238 unit tests (convergence included), 22 Playwright tests (13 from M1, 9 with two tabs).
 - [ ] M3 Sync server + Supabase persistence + offline
 - [ ] M4 Presence and cursors
 - [ ] M5 Auth, sharing, permissions, demo board
@@ -101,11 +122,19 @@ Read this before touching `apps/web/src/features/board/board.tsx`. Each point co
 
 ## Open items
 
-- M2: decide how remote changes are shown while a local drag is in progress (the drag draft is a copy taken at drag start).
-- M2: `BoardStore.updateCard` replaces whole strings. Character-level merging needs `Y.Text` and the planned `text-binding` module.
+- Bug, older than M2: start dragging a column while a text field that is scrolled out of view has focus (easiest: add a column, leave the add form open, scroll back, drag the first column). The browser scrolls the board back to the focused field as the drag starts, so the column lands several places off. Measured: `scrollLeft` 0 to 540 at pick-up, only when a field is focused; no script calls `focus` or `scrollIntoView`. Likely fix: blur the focused field when a drag begins, or close the add form on blur. `sync.spec.ts` presses Escape to avoid it; remove that when fixed and add a test.
+- M3: replace `apps/web/src/lib/broadcast-provider.ts` with the y-partyserver provider and add `y-indexeddb`. Take the starting document from the server snapshot instead of `encodeBoardState` in the browser, and drop the seed fingerprint from the channel name in favour of `doc_generation`.
+- M3: decide whether tabs keep talking over BroadcastChannel as well as the server (faster between tabs, works offline).
+- M4: while a card or column is held, changes from other people are not drawn. Fine for a mouse drag of a second or two; a keyboard drag can be held for long. Consider a "changes waiting" hint, or showing that someone else is dragging.
+- M5: data from other clients is only shape-checked. A malformed `order` key (not a valid fractional index) passes `readBoardState` and makes `orderAtIndex` throw on the next move beside it. Validate keys and ids when reading, before the public demo opens.
+- M5: title and description length limits apply to what one client writes. Two people adding text at once can leave a title longer than `MAX_TITLE_LENGTH`; the server only limits total document size.
+- M5: `createdBy` on new cards is the string "anonymous" until there are users (`userId` option of `createYjsBoardStore`).
+- M8: text typed by someone else that arrives while an input method is composing (Chinese, Japanese, Korean keyboards) replaces the field's value and may interrupt the composition. Hold remote edits until `compositionend`.
+- M8: a card or column whose title is empty (possible for a moment while someone retypes it, or after two overlapping deletions) is shown and announced as "Untitled". Check the wording and contrast.
+- Cards whose column was deleted are hidden if the board has no column at all, and reappear in the first column that is added. Rare; decide whether to delete them instead.
 - M3 spike: Durable Object hibernation with y-partyserver; Postgres access from the Worker
 - M3: add `pnpm e2e` to CI (install Chromium with `playwright install --with-deps chromium`) and retest parallel workers there.
-- M6: card description has no UI yet (the field exists in the model). Planned with the card detail view.
+- M6: card description has no UI yet (the field exists in the model and is a `Y.Text`). Planned with the card detail view; it needs an `editCardDescription` session next to `editCardTitle`.
 - M8: drag announcements read out raw ids ("seed-column-1-card-1"); configure dnd-kit's Accessibility plugin to use card and column titles.
 - M8: cards are a `role="group"` in a plain container, not list items. Review with a screen reader.
 - Deleting a column with cards uses `window.confirm`. Replace with undo or a proper dialog (M6).
@@ -129,3 +158,9 @@ Read this before touching `apps/web/src/features/board/board.tsx`. Each point co
 - Ordering: `fractional-indexing-jittered` behind `packages/core/src/ordering`. Ids: `nanoid`. Seed content has fixed ids and unjittered keys so it is identical wherever it is built.
 - `packages/core` exports TypeScript source; `apps/web` compiles it via `transpilePackages`.
 - Work on a branch per milestone (`m1-static-board`, ...), merged to `main` by pull request.
+- Remote changes during a local drag (M2): the board is frozen from drag start until dnd-kit is idle; changes from others are applied to the document at once but drawn afterwards. The drop position is rebased onto the live board by neighbours. Chosen over redrawing mid-drag because dnd-kit moves the same DOM nodes, and over dropping at the raw index because the list may have changed.
+- Titles (M2): column titles are `Y.Text` like card titles, a change from the first plan (`docs/PLAN.md` is updated). Editing is live: each keystroke is written and shown to others. Escape takes back only what that edit typed; a blank result is refused the same way.
+- `BoardStore` (M2) gained `editCardTitle` and `editColumnTitle`, which return a `TextSession` (`getText`, `splice`, `subscribe`, `commit`, `cancel`). `renameColumn` and `updateCard` remain for setting a finished value. The in-memory store implements sessions too, without merge.
+- Deleting a column deletes the cards shown in it, including cards re-homed there because their own column is gone. A card moved out of a column by one person while another deletes that column is deleted: the delete wins.
+- Yjs is pinned to 13.6.33 in the `catalog:`. Yjs 14 is still a pre-release (checked 2026-11-13).
+- Starting content is written under Yjs client id 1 by `encodeBoardState`; real clients use random 32-bit ids.

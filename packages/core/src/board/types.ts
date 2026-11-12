@@ -1,4 +1,5 @@
 import type { OrderKey } from "../ordering/index";
+import type { TextSession } from "../text-binding/index";
 
 /** Longest title a column or card may have. Longer input is cut. */
 export const MAX_TITLE_LENGTH = 200;
@@ -58,6 +59,12 @@ export interface CardPatch {
  *
  * Calls that would change nothing (unknown ids, blank titles, a move to the
  * current position) are ignored and do not notify subscribers.
+ *
+ * Titles can be changed in two ways. `renameColumn` and `updateCard` set a
+ * finished value in one go. `editColumnTitle` and `editCardTitle` open a
+ * session for a text field: every keystroke is written as it happens and
+ * other people's keystrokes arrive the same way, so two people typing in the
+ * same title both keep their words.
  */
 export interface BoardStore {
   /** The current board. The same object is returned until a change is made. */
@@ -68,6 +75,8 @@ export interface BoardStore {
   /** Adds a column at the end. Returns its id, or null if the title is blank. */
   addColumn(title: string): string | null;
   renameColumn(columnId: string, title: string): void;
+  /** Starts editing a column's title. Null if the column does not exist. */
+  editColumnTitle(columnId: string): TextSession | null;
   /** Deletes a column and every card in it. */
   deleteColumn(columnId: string): void;
   /** Moves a column so that it ends up at `toIndex`. */
@@ -76,6 +85,8 @@ export interface BoardStore {
   /** Adds a card at the end of a column. Returns its id, or null if refused. */
   addCard(columnId: string, title: string): string | null;
   updateCard(cardId: string, patch: CardPatch): void;
+  /** Starts editing a card's title. Null if the card does not exist. */
+  editCardTitle(cardId: string): TextSession | null;
   deleteCard(cardId: string): void;
   /** Moves a card so that it ends up at `toIndex` in `toColumnId`. */
   moveCard(cardId: string, toColumnId: string, toIndex: number): void;
