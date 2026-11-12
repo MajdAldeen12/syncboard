@@ -67,7 +67,7 @@ CI (`.github/workflows/ci.yml`) runs format check, lint, typecheck, test and bui
 
 ## Current status
 
-- Phase: M0 is done locally (2026-11-12). Nothing has been pushed; there is no GitHub remote yet. Next: create the remote, confirm CI is green, then start M1.
+- Phase: M0 is done locally (2026-11-12). The public repo https://github.com/MajdAldeen12/syncboard exists and is set as `origin`, but it is still empty: the first push was rejected because the `gh` token lacks the `workflow` scope needed to upload `.github/workflows/ci.yml`. The owner must run `gh auth refresh -h github.com -s workflow`, then `git push -u origin main`. Next: confirm CI is green, then start M1.
 - [ ] M0 Foundations: all local checks pass. Remaining: first push and a green CI run.
 - [ ] M1 Static board with drag and drop
 - [ ] M2 State in Yjs, two tabs in sync
@@ -84,7 +84,7 @@ CI (`.github/workflows/ci.yml`) runs format check, lint, typecheck, test and bui
 - M1 spike: `@dnd-kit/react` keyboard support and stability (fallback: legacy `@dnd-kit/core`)
 - M3 spike: Durable Object hibernation with y-partyserver; Postgres access from the Worker
 - Free-tier Supabase pauses after about a week of low activity: keep-alive cron + README note (M9)
-- GitHub repo name and visibility, hosting accounts (Cloudflare, Supabase, Vercel) and domain not yet confirmed
+- Hosting accounts (Cloudflare, Supabase, Vercel) and domain not yet confirmed
 - `pnpm-workspace.yaml` has a leftover `minimumReleaseAgeExclude: prettier@3.10.1` entry added by pnpm; prettier is now pinned to 3.9.10, so the entry can be deleted once the owner agrees
 
 ## Decisions
