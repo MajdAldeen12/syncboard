@@ -1,0 +1,16 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+catalog:
+  "@types/node": ^22.20.5
+  eslint: ^9.39.5
+  typescript: 5.9.3
+  vitest: ^5.1.0
+
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
+
+minimumReleaseAgeExclude:
+  - prettier@3.10.1
