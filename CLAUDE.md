@@ -106,7 +106,7 @@ Read this before touching `packages/core/src/board-doc` or the files in `apps/we
 
 ## Current status
 
-- Phase: M2 complete (2026-11-13) on branch `m2-yjs-board`, committed locally. **Not pushed and no pull request yet: the owner has to say go.** M1 is merged to `main` through pull request 1. Next after M2 merges: M3 (sync server, Supabase persistence, offline), starting with its spike.
+- Phase: M2 complete (2026-11-13) on branch `m2-yjs-board`, pushed and open as pull request 2 against `main`. If you are reading this on `main`, that pull request has been merged. M1 was merged through pull request 1. Next after M2 merges: M3 (sync server, Supabase persistence, offline), starting with its spike.
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
 - The board lives at `/demo` in a Yjs document (`createYjsBoardStore`) and syncs between tabs of one browser over a BroadcastChannel. Nothing is saved: the board exists while at least one tab holds it, and a lone reloaded tab starts from the seed again. M3 adds the server and storage.
 - [x] M0 Foundations (repo, CI, tooling)
