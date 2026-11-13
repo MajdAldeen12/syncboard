@@ -8,6 +8,7 @@
     "./board-doc": "./src/board-doc/index.ts",
     "./ordering": "./src/ordering/index.ts",
     "./permissions": "./src/permissions/index.ts",
+    "./sync-status": "./src/sync-status/index.ts",
     "./text-binding": "./src/text-binding/index.ts"
   },
   "scripts": {

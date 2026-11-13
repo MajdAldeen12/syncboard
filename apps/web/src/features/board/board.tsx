@@ -16,6 +16,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type ReactNode,
 } from "react";
 import { AddItem } from "./add-item";
 import { Column } from "./column";
@@ -57,7 +58,13 @@ function WhenDragIdle({ onIdle }: { onIdle: () => void }) {
   return null;
 }
 
-export function Board({ store }: { store: BoardStore }) {
+interface BoardProps {
+  store: BoardStore;
+  /** Shown at the end of the title row, for instance the sync status. */
+  headerEnd?: ReactNode;
+}
+
+export function Board({ store, headerEnd }: BoardProps) {
   const live = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,
@@ -176,9 +183,12 @@ export function Board({ store }: { store: BoardStore }) {
       )}
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <h1 className="shrink-0 px-4 pt-4 text-lg font-semibold tracking-tight">
-          {board.title}
-        </h1>
+        <div className="flex shrink-0 items-center justify-between gap-4 px-4 pt-4">
+          <h1 className="text-lg font-semibold tracking-tight">
+            {board.title}
+          </h1>
+          {headerEnd}
+        </div>
 
         <div className="flex min-h-0 flex-1 items-start gap-3 overflow-x-auto p-4">
           {board.columns.map((column, index) => {

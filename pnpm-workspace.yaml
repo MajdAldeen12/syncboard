@@ -10,8 +10,13 @@ catalog:
   yjs: 13.6.33
 
 allowBuilds:
+  # Install scripts are off unless a package is shown to need one. esbuild and
+  # workerd (both pulled in by wrangler) run from their platform packages
+  # without theirs.
+  esbuild: false
   sharp: false
   unrs-resolver: false
+  workerd: false
 
 minimumReleaseAgeExclude:
   - prettier@3.10.1

@@ -73,8 +73,46 @@ export async function drop(page: Page, title: string): Promise<void> {
   await expect(card(page, title)).not.toHaveAttribute("data-dnd-dragging");
 }
 
-/** Opens the demo board and waits until its cards are there. */
-export async function openBoard(page: Page): Promise<void> {
-  await page.goto("/demo");
-  await expect(card(page, FIRST_CARD)).toBeVisible();
+/** The id of a board no other test uses. It starts with the demo content. */
+export function newBoardId(): string {
+  return `test-${crypto.randomUUID().slice(0, 13)}`;
+}
+
+export function boardUrl(boardId: string): string {
+  return `/demo?board=${boardId}`;
+}
+
+/** The "Synced" / "Syncing" / "Offline" indicator. */
+export function syncIndicator(page: Page): Locator {
+  return page.locator("[data-sync-status]");
+}
+
+/**
+ * Opens a board and waits until it has arrived from the sync server. Without
+ * a board id the page gets a board of its own; pass the same id to put two
+ * pages on one board.
+ */
+export async function openBoard(
+  page: Page,
+  boardId: string = newBoardId(),
+): Promise<void> {
+  await page.goto(boardUrl(boardId));
+  // Long enough for one abandoned connection attempt and its retry. On the
+  // Windows dev machine a second browser's handshake occasionally hangs.
+  await expect(card(page, FIRST_CARD)).toBeVisible({ timeout: 25_000 });
+  await expect(syncIndicator(page)).toHaveAttribute(
+    "data-sync-status",
+    "synced",
+  );
+}
+
+export async function addCard(
+  page: Page,
+  columnName: string,
+  title: string,
+): Promise<void> {
+  const target = column(page, columnName);
+  await target.getByRole("button", { name: "Add a card" }).click();
+  await target.getByRole("textbox", { name: "Card title" }).fill(title);
+  await page.keyboard.press("Enter");
 }
