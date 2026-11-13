@@ -7,7 +7,7 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "dev": "pnpm --filter @syncboard/web dev",
+    "dev": "pnpm --parallel --filter @syncboard/web --filter @syncboard/sync dev",
     "build": "pnpm --filter @syncboard/web build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",

@@ -3,34 +3,32 @@ import {
   FIRST_CARD,
   SECOND_CARD,
   THIRD_CARD,
+  addCard,
+  boardUrl,
   card,
   cardsIn,
   column,
   columnNames,
   dragWithMouse,
   drop,
+  newBoardId,
   openBoard,
   pickUp,
 } from "./helpers";
 
 const LAST_CARD = "Open the demo board";
 
-// Two tabs of one browser, both on the demo board. `page` is the first tab,
+// Two tabs of one browser, both on the same board. `page` is the first tab,
 // `other` the second.
+let boardId: string;
 let other: Page;
 
 test.beforeEach(async ({ page, context }) => {
-  await openBoard(page);
+  boardId = newBoardId();
+  await openBoard(page, boardId);
   other = await context.newPage();
-  await openBoard(other);
+  await openBoard(other, boardId);
 });
-
-async function addCard(tab: Page, columnName: string, title: string) {
-  const target = column(tab, columnName);
-  await target.getByRole("button", { name: "Add a card" }).click();
-  await target.getByRole("textbox", { name: "Card title" }).fill(title);
-  await tab.keyboard.press("Enter");
-}
 
 async function deleteCard(tab: Page, title: string) {
   await card(tab, title).hover();
@@ -166,7 +164,7 @@ test.describe("two tabs, harder cases", () => {
     await expect.poll(() => cardsIn(page, "Done")).toEqual([]);
 
     const late = await context.newPage();
-    await late.goto("/demo");
+    await late.goto(boardUrl(boardId));
 
     await expect
       .poll(() => cardsIn(late, "Review"))

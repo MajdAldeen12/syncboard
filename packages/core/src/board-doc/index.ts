@@ -1,4 +1,3 @@
-export { fingerprint } from "./fingerprint";
 export {
   cardText,
   columnText,

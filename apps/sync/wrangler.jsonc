@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "syncboard-sync",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "vars": {
+    // "1" lets tests use throwaway boards named test-*. Never set in production.
+    "ALLOW_TEST_BOARDS": "0",
+  },
+  "durable_objects": {
+    // PartyServer routes /parties/board/<room> to this binding ("Board" in kebab case).
+    "bindings": [{ "name": "Board", "class_name": "BoardRoom" }],
+  },
+  // SQLite-backed Durable Objects are the only kind on the Workers free plan.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }],
+}

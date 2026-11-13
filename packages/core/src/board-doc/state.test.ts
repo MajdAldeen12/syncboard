@@ -6,7 +6,6 @@ import {
   SCHEMA_VERSION,
   boardRoots,
   encodeBoardState,
-  fingerprint,
   readBoardState,
 } from "./index";
 
@@ -149,23 +148,5 @@ describe("readBoardState", () => {
     cards.set("__proto__", new Y.Map([["columnId", "todo"]]));
 
     expect(readBoardState(doc)).toEqual(SMALL);
-  });
-});
-
-describe("fingerprint", () => {
-  const bytes = (text: string) => new TextEncoder().encode(text);
-
-  it("is the FNV-1a hash of the bytes, in hexadecimal", () => {
-    expect(fingerprint(bytes(""))).toBe("811c9dc5");
-    expect(fingerprint(bytes("a"))).toBe("e40c292c");
-    expect(fingerprint(bytes("foobar"))).toBe("bf9cf968");
-  });
-
-  it("tells apart boards that start with different content", () => {
-    const other = { ...SMALL, title: "Another board" };
-
-    expect(fingerprint(encodeBoardState(other))).not.toBe(
-      fingerprint(encodeBoardState(SMALL)),
-    );
   });
 });

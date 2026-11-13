@@ -1,0 +1,27 @@
+{
+  "name": "@syncboard/sync",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --ip 127.0.0.1 --port 8787",
+    "lint": "eslint",
+    "typecheck": "wrangler types --strict-vars=false && tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@syncboard/core": "workspace:*",
+    "partyserver": "^0.5.10",
+    "y-partyserver": "^2.2.0",
+    "yjs": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260702.1",
+    "@eslint/js": "^9.39.5",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "catalog:",
+    "wrangler": "^4.161.0"
+  }
+}

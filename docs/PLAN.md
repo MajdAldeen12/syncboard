@@ -78,7 +78,8 @@ cards   : Y.Map<cardId,  Y.Map { columnId, order, title: Y.Text, description: Y.
 
 - Every board gets its snapshot row at creation (the server action builds the seed doc with `packages/core`). A missing row means the board does not exist.
 - `onLoad` reads the snapshot. If the read fails (for example Supabase is paused), the room rejects connections with a "storage unavailable" close code. It never serves an empty document and never saves after a failed load.
-- `onSave` upserts the snapshot and `boards.title`, debounced (2 s, max 10 s) and when the room empties.
+- `onSave` upserts the snapshot and `boards.title`, debounced (2 s, max 10 s). There is no extra save when the room empties: the pending debounce keeps the room awake until it has run (found in the M3 spike, `docs/decisions/0001-durable-object-hibernation.md`).
+- The demo board is the exception to "created by a server action": it has no owner, so the sync server creates it from the seed on first visit and stores it before serving it.
 - The client keeps the doc in IndexedDB, shows a connection status (synced, syncing, offline with local changes), and reconnects with backoff.
 - Both Vercel functions and the Worker use the Supabase shared pooler in transaction mode with `prepare: false`. Migrations use the direct connection string.
 
@@ -245,6 +246,7 @@ Done when: two tabs mirror each other instantly; convergence tests pass (random 
 
 **M3. Sync server and Supabase persistence.** Starts with a spike on Durable Object hibernation and Postgres access from the Worker. Then `apps/sync`, `packages/db` with the first migration, `onLoad`/`onSave`, `y-indexeddb`, connection status UI. The sync server is not deployed publicly until M5.
 Done when: two different browsers sync through `wrangler dev`; restarting the sync server restores the board from Supabase; going offline in both browsers, editing, and reconnecting merges cleanly; a failed snapshot load rejects connections instead of serving an empty board (tested).
+Built in two stages. Stage 1 (done): everything that needs no accounts, with the document kept in Durable Object storage. It meets every check above except "from Supabase". Stage 2: `packages/db` and a Supabase-backed store behind the same interface.
 
 **M4. Presence and cursors.** Awareness state (user, cursor in board coordinates, editing, dragging), avatar stack, live cursors, "X is editing this card".
 Done when: two browsers see each other's cursors move smoothly; avatars appear and disappear on join and leave; the editing badge shows on the focused card; cursor traffic is throttled to about 15 messages per second and stops when idle.

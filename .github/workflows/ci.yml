@@ -12,6 +12,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Wrangler is only used to run the sync server locally. No prompts, no telemetry.
+  WRANGLER_SEND_METRICS: "false"
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -42,3 +46,34 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install the browser
+        run: pnpm --filter @syncboard/web exec playwright install --with-deps chromium
+
+      # Builds the web app with test settings, starts it and a local sync
+      # server, and runs the browser tests against both.
+      - name: Browser tests
+        run: pnpm e2e
+
+      - name: Keep traces of failed tests
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-traces
+          path: apps/web/test-results/
+          retention-days: 7
