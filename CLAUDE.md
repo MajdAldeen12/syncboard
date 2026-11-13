@@ -6,13 +6,12 @@ Real-time collaborative kanban web app. Free public tool and portfolio piece: vi
 
 ## Resume here (last updated 2026-11-14)
 
-- **State:** `main` holds milestones 0 to 2 and its CI is green. M3 stage 1 (sync server, IndexedDB, connection status, browser tests in CI) is on branch `m3-sync-server`, open as pull request 3 against `main`. If you are reading this on `main`, that pull request has been merged.
-- **Next:** make sure the `e2e` CI job passes on pull request 3 (its first run anywhere but the Windows dev machine) and merge once the owner agrees. Then M3 stage 2. See "Next: M3 stage 2" below.
+- **State:** `main` holds milestones 0 to 2 and M3 stage 1 (sync server, IndexedDB, connection status, browser tests in CI), merged through pull request 3 on 2026-11-14. Both CI jobs pass, the browser tests included. No open pull requests, no work in flight.
+- **Next:** M3 stage 2 (Supabase persistence). It cannot start until the owner has a development Supabase project. See "Next: M3 stage 2" below.
 - **Waiting on the owner:**
-  - Go-ahead to merge pull request 3.
   - A development Supabase project, needed for M3 stage 2.
   - A look at `/demo` in two browsers. `pnpm dev` now starts the sync server too. M2 and M3 stage 1 were verified by automated tests only.
-  - OK to delete the merged branches `m1-static-board` and `m2-yjs-board` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
+  - OK to delete the merged branches `m1-static-board`, `m2-yjs-board` and `m3-sync-server` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
 - **First time on a machine:** `pnpm install`, then `pnpm --filter @syncboard/web exec playwright install chromium`. Run the full gate (see "Working a milestone") to confirm a clean start before changing anything.
 
 ## Product
@@ -162,7 +161,7 @@ Read this before touching `apps/sync` or `apps/web/src/lib/board-session.ts`. Th
 
 ## Current status
 
-- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is open as pull request 3 (branch `m3-sync-server`). M3 stage 2 has not started.
+- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started.
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
 - The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. Nothing is deployed, and there is no database yet.
 - [x] M0 Foundations (repo, CI, tooling)
@@ -181,7 +180,7 @@ Read this before touching `apps/sync` or `apps/web/src/lib/board-session.ts`. Th
 ## Open items
 
 - Bug, older than M2: start dragging a column while a text field that is scrolled out of view has focus (easiest: add a column, leave the add form open, scroll back, drag the first column). The browser scrolls the board back to the focused field as the drag starts, so the column lands several places off. Measured: `scrollLeft` 0 to 540 at pick-up, only when a field is focused; no script calls `focus` or `scrollIntoView`. Likely fix: blur the focused field when a drag begins, or close the add form on blur. `sync.spec.ts` presses Escape to avoid it; remove that when fixed and add a test.
-- CI: the `e2e` job first runs on pull request 3. Once it is known to pass with one worker, try more than one there (`workers` in `apps/web/playwright.config.ts`); the stall that forces one worker may be specific to the Windows machine.
+- CI: the `e2e` job passes on GitHub's Linux runners with one worker (first run was pull request 3). Still to try: more than one worker there (`workers` in `apps/web/playwright.config.ts`); the stall that forces one worker may be specific to the Windows machine.
 - M3 stage 2: the M3 done check "restarting the sync server restores the board from Supabase" is open. Stage 1 covers the equivalent for Durable Object storage: a room that everyone left is dropped from memory and serves what was saved.
 - M5: `DOC_GENERATION` is a constant 1 in `board-session.ts`. Resetting the demo board needs the server to tell the browser the current generation, and the browser to drop a saved copy of an older one.
 - M5: the sync server accepts any connection from any origin. Tickets and the origin allowlist are M5; until then it must not be deployed.
