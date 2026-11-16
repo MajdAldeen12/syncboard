@@ -20,8 +20,17 @@ export function card(page: Page, title: string): Locator {
 
 /** Card titles in a column, top to bottom. */
 export async function cardsIn(page: Page, name: string): Promise<string[]> {
-  const titles = await column(page, name).locator(CARD).allInnerTexts();
-  return titles.map((title) => title.trim());
+  return column(page, name)
+    .locator(CARD)
+    .evaluateAll((cards) =>
+      cards.map((card) => {
+        // A card someone else is editing or holding carries a tag saying
+        // so. The tag is not part of the title.
+        const tag = card.querySelector<HTMLElement>("[data-presence-activity]");
+        const text = (card as HTMLElement).innerText;
+        return (tag ? text.replace(tag.innerText, "") : text).trim();
+      }),
+    );
 }
 
 export async function columnNames(page: Page): Promise<(string | null)[]> {
@@ -115,4 +124,51 @@ export async function addCard(
   await target.getByRole("button", { name: "Add a card" }).click();
   await target.getByRole("textbox", { name: "Card title" }).fill(title);
   await page.keyboard.press("Enter");
+}
+
+// --- Presence ---------------------------------------------------------------
+
+/** The avatars of the people on the board, this browser's own first. */
+export function people(page: Page): Locator {
+  return page.locator("[data-presence-person]");
+}
+
+/** The made-up name this browser goes by. */
+export async function ownName(page: Page): Promise<string> {
+  const name = await page
+    .locator('[data-presence-person][data-self="true"]')
+    .getAttribute("data-user-name");
+  if (!name) throw new Error("This browser has no name yet");
+  return name;
+}
+
+/** Another person's pointer, as drawn on this page. */
+export function cursorOf(page: Page, name: string): Locator {
+  return page.locator(`[data-presence-cursor][data-user-name="${name}"]`);
+}
+
+/** Where the tip of another person's pointer is drawn on this page. */
+export async function cursorTip(
+  page: Page,
+  name: string,
+): Promise<{ x: number; y: number }> {
+  const box = await cursorOf(page, name).boundingBox();
+  if (!box) throw new Error(`${name}'s cursor is not on screen`);
+  return { x: box.x, y: box.y };
+}
+
+/** The "… is editing" or "… is moving this" tag on a card or column. */
+export function activityOn(item: Locator): Locator {
+  return item.locator("[data-presence-activity]");
+}
+
+/**
+ * Makes the page unable to send anything more. Closing it afterwards is
+ * what a crashed tab or a pulled network cable looks like from the server:
+ * the connection just ends, with no goodbye from the app.
+ */
+export async function silence(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    WebSocket.prototype.send = () => {};
+  });
 }

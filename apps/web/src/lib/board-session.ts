@@ -1,6 +1,13 @@
 import type { BoardStore } from "@syncboard/core/board";
 import { boardRoots, createYjsBoardStore } from "@syncboard/core/board-doc";
 import {
+  createPresenceStore,
+  ownChanges,
+  type PresenceStore,
+  type PresenceUser,
+  type ThrottleClock,
+} from "@syncboard/core/presence";
+import {
   createStallDetector,
   refusalFromCloseCode,
   syncStatus,
@@ -21,6 +28,13 @@ const DOC_GENERATION = 1;
 /** How long a connection attempt may take before it is abandoned and retried. */
 const HANDSHAKE_TIMEOUT_MS = 8_000;
 
+/** Real time, for the limit on how often presence is sent. */
+const BROWSER_CLOCK: ThrottleClock = {
+  now: () => performance.now(),
+  setTimer: (run, ms) => setTimeout(run, ms),
+  clearTimer: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+};
+
 const NOT_CONNECTED: SyncSignals = {
   hasContent: false,
   connected: false,
@@ -34,14 +48,17 @@ const NOT_CONNECTED: SyncSignals = {
 export interface BoardSession {
   readonly boardId: string;
   readonly store: BoardStore;
+  /** Who else is on the board, and what this tab tells them about itself. */
+  readonly presence: PresenceStore;
   getStatus(): SyncStatus;
   subscribeStatus(listener: () => void): () => void;
   /**
-   * Opens this device's saved copy and the connection to the sync server.
-   * Returns a function that closes both. The document itself is kept, so
-   * connecting again carries on from where it was.
+   * Opens this device's saved copy and the connection to the sync server,
+   * and joins the board as `user`. Returns a function that closes both. The
+   * document itself is kept, so connecting again carries on from where it
+   * was.
    */
-  connect(host: string): () => void;
+  connect(host: string, user: PresenceUser): () => void;
 }
 
 /**
@@ -55,6 +72,7 @@ export interface BoardSession {
 export function createBoardSession(boardId: string): BoardSession {
   const doc = new Y.Doc();
   const store = createYjsBoardStore(doc);
+  const presence = createPresenceStore(BROWSER_CLOCK);
   const listeners = new Set<() => void>();
 
   let signals = NOT_CONNECTED;
@@ -72,6 +90,7 @@ export function createBoardSession(boardId: string): BoardSession {
   return {
     boardId,
     store,
+    presence,
     getStatus: () => status,
 
     subscribeStatus(listener) {
@@ -81,7 +100,7 @@ export function createBoardSession(boardId: string): BoardSession {
       };
     },
 
-    connect(host) {
+    connect(host, user) {
       // This device's copy. It is what makes the board open instantly on a
       // return visit and keeps edits made while offline.
       const saved = new IndexeddbPersistence(
@@ -95,6 +114,22 @@ export function createBoardSession(boardId: string): BoardSession {
         connect: navigator.onLine,
       });
       if (!navigator.onLine) update({ connectionFailed: true });
+
+      // Presence travels through the provider's awareness. Left alone, the
+      // provider sends out every awareness change it sees, including other
+      // people's states it has just received, so each cursor move came back
+      // to the server once from every other tab on the board. Only what this
+      // tab says about itself goes out. Measured in
+      // docs/decisions/0002-presence-and-hibernation.md.
+      const awareness = provider.awareness;
+      const sendEveryChange = provider._awarenessUpdateHandler;
+      const sendOwnChanges: typeof sendEveryChange = (changes, origin) => {
+        const own = ownChanges(changes, awareness.clientID);
+        if (own) sendEveryChange(own, origin);
+      };
+      awareness.off("change", sendEveryChange);
+      awareness.on("change", sendOwnChanges);
+      const leave = presence.attach(awareness, user);
 
       // The provider only learns that a connection is dead when the socket
       // closes, which can take a long time after the network has gone. The
@@ -182,6 +217,10 @@ export function createBoardSession(boardId: string): BoardSession {
         window.removeEventListener("offline", onOffline);
         window.removeEventListener("online", onOnline);
         doc.off("update", onDocUpdate);
+        leave();
+        awareness.off("change", sendOwnChanges);
+        // Says goodbye for this tab if the connection is still open. If it
+        // is not, the server tells the others when the socket closes.
         provider.destroy();
         void saved.destroy();
         update({ connected: false, synced: false });

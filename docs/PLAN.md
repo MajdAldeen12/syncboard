@@ -117,6 +117,7 @@ SyncBoard/
 │  └─ sync/                      Cloudflare Worker
 │     ├─ src/index.ts            routing + onBeforeConnect (ticket check)
 │     ├─ src/board-room.ts       YServer subclass: onLoad, onSave, isReadOnly
+│     ├─ src/presence-relay.ts   who is on the board, kept across hibernation
 │     ├─ src/snapshot-store.ts, src/limits.ts, src/demo-reset.ts
 │     └─ wrangler.jsonc
 └─ packages/
@@ -248,8 +249,9 @@ Done when: two tabs mirror each other instantly; convergence tests pass (random 
 Done when: two different browsers sync through `wrangler dev`; restarting the sync server restores the board from Supabase; going offline in both browsers, editing, and reconnecting merges cleanly; a failed snapshot load rejects connections instead of serving an empty board (tested).
 Built in two stages. Stage 1 (done): everything that needs no accounts, with the document kept in Durable Object storage. It meets every check above except "from Supabase". Stage 2: `packages/db` and a Supabase-backed store behind the same interface.
 
-**M4. Presence and cursors.** Awareness state (user, cursor in board coordinates, editing, dragging), avatar stack, live cursors, "X is editing this card".
+**M4. Presence and cursors.** Awareness state (user, cursor, editing, dragging), avatar stack, live cursors, "X is editing this card".
 Done when: two browsers see each other's cursors move smoothly; avatars appear and disappear on join and leave; the editing badge shows on the focused card; cursor traffic is throttled to about 15 messages per second and stops when idle.
+As built: a cursor is tied to the card or column it is over and falls back to board coordinates on the bare board (`docs/decisions/0003-cursor-coordinates.md`). The sync server relays presence itself and keeps each person's last state with their connection, because `y-partyserver` loses it when the room hibernates (`docs/decisions/0002-presence-and-hibernation.md`). Until M5 everyone is a guest with a made-up name kept in the browser.
 
 **M5. Auth, sharing, permissions.** Supabase Auth, profiles, dashboard, members, share links, `permissions` module, sync tickets, `isReadOnly`, revocation, guest tickets, demo caps and reset, deny-all RLS.
 Done when: the owner/editor/viewer/non-member/anonymous matrix passes in unit and integration tests; a raw WebSocket client with a viewer ticket cannot change the document; expired and wrong-board tickets are rejected; removing a member closes their connection; a Data API request with the public key returns no rows.
@@ -270,7 +272,7 @@ Done when: the production demo board opens in a private window with no signup; t
 
 **Risks, with the mitigation planned:**
 
-1. **Cloudflare free limits.** 100,000 Durable Object requests a day (incoming WebSocket messages count 20:1) and 13,000 GB-s of duration a day, which is roughly 28 hours of one awake object. Hibernation is therefore required and cursor traffic must be throttled. The M3 spike confirms `hibernate: true` works with `y-partyserver` and that pending saves complete before hibernation. If a limit is hit, operations fail until 00:00 UTC and the app falls back to its offline mode.
+1. **Cloudflare free limits.** 100,000 Durable Object requests a day (incoming WebSocket messages count 20:1) and 13,000 GB-s of duration a day, which is roughly 28 hours of one awake object. Hibernation is therefore required and cursor traffic must be throttled. The M3 spike confirms `hibernate: true` works with `y-partyserver` and that pending saves complete before hibernation. Measured in M4: tabs left open on an idle board send nothing and do not wake the room, and one moving pointer costs at most 15 billed messages a second whatever the number of people watching, which is about 37 hours of pointer movement a day across all users. If a limit is hit, operations fail until 00:00 UTC and the app falls back to its offline mode.
 2. **`y-partyserver` maturity.** The repo calls itself a work in progress and the README lists read-only as a to-do, although `isReadOnly` exists in the source. Pin the version, keep it behind `board-room.ts`, and cover read-only with an integration test. Fallback: Hocuspocus 4 on a Node host.
 3. **Postgres from a Durable Object.** Planned as `postgres.js` through the pooler with a connection per save. Fallbacks if the spike fails: Cloudflare Hyperdrive, or the Supabase Data API over HTTPS.
 4. **dnd-kit and Motion both use transforms.** Layout animation can fight the drag transform. Spike in M1, settle in M6 (drag overlay for the dragged card, layout animation only for the others).

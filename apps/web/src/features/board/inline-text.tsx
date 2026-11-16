@@ -1,5 +1,6 @@
 "use client";
 
+import type { ItemRef } from "@syncboard/core/presence";
 import type { TextSession } from "@syncboard/core/text-binding";
 import {
   useCallback,
@@ -10,6 +11,7 @@ import {
   type KeyboardEvent,
   type RefObject,
 } from "react";
+import { useAnnounceEditing } from "@/features/presence/presence-context";
 import { bindTextField } from "@/lib/bind-text-field";
 
 const FIELD_CLASS =
@@ -25,6 +27,8 @@ interface TextEditorProps {
   maxLength: number;
   /** Wraps long text and grows with it. Enter still saves. */
   multiline?: boolean;
+  /** The card or column the text belongs to. Others are told it is being edited. */
+  item?: ItemRef;
   /**
    * Called once when editing ends. `endedBy` tells the caller whether to
    * hand keyboard focus back.
@@ -43,8 +47,12 @@ export function TextEditor({
   label,
   maxLength,
   multiline = false,
+  item,
   onDone,
 }: TextEditorProps) {
+  // The field is on screen exactly as long as the edit lasts.
+  useAnnounceEditing(item);
+
   // The field keeps the name and the text it opened with. The text is driven
   // by the session from then on, and a name that followed the text would
   // change under a screen reader on every keystroke.
@@ -163,10 +171,18 @@ interface InlineTextProps {
   /** Accessible name for the edit button and the field, e.g. "Rename column Todo". */
   label: string;
   maxLength: number;
+  /** The card or column the text belongs to. */
+  item?: ItemRef;
 }
 
 /** Text that turns into a field when clicked. */
-export function InlineText({ open, value, label, maxLength }: InlineTextProps) {
+export function InlineText({
+  open,
+  value,
+  label,
+  maxLength,
+  item,
+}: InlineTextProps) {
   const [editing, setEditing] = useState(false);
   const [buttonRef, requestFocus] =
     useFocusAfterEdit<HTMLButtonElement>(editing);
@@ -178,6 +194,7 @@ export function InlineText({ open, value, label, maxLength }: InlineTextProps) {
         value={value}
         label={label}
         maxLength={maxLength}
+        item={item}
         onDone={(endedBy) => {
           if (endedBy === "keyboard") requestFocus();
           setEditing(false);
