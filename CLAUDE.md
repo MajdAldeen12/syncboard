@@ -6,13 +6,12 @@ Real-time collaborative kanban web app. Free public tool and portfolio piece: vi
 
 ## Resume here (last updated 2026-11-16)
 
-- **State:** `main` holds milestones 0 to 2 and M3 stage 1. Branch `m4-presence`, cut from `main` at `f057c71`, holds M4 (presence and live cursors). **It is pushed and open as pull request 4, not merged yet.** The full gate passes on the branch locally; check the CI run on the pull request before merging.
-- **Next:** with the owner's OK, squash-merge pull request 4 (see "Working a milestone"), then bring this section and "Current status" up to date on `main`. After that M3 stage 2 (Supabase persistence, still blocked, see below) or M5.
+- **State:** `main` holds milestones 0 to 2, M3 stage 1 and M4 (presence and live cursors). M4 was merged through pull request 4 on 2026-11-16; both CI jobs passed on it, the 17 new browser tests included. No open pull requests, no work in flight.
+- **Next:** M3 stage 2 (Supabase persistence). It cannot start until the owner has a development Supabase project. See "Next: M3 stage 2" below. M5 (sign-in, sharing, permissions) needs that project too. M6 (motion polish in the app) and M7 (the landing page) need no accounts and can be done first.
 - **Waiting on the owner:**
-  - OK to merge pull request 4 (M4).
-  - A development Supabase project, needed for M3 stage 2.
+  - A development Supabase project, needed for M3 stage 2 and M5.
   - A look at `/demo` as two people: two different browsers, or one normal and one private window. Two tabs of the same browser are the same guest, so they show one avatar (and each other's pointer). `pnpm dev` starts the sync server too. M2, M3 stage 1 and M4 were verified by automated tests.
-  - OK to delete the merged branches `m1-static-board`, `m2-yjs-board` and `m3-sync-server` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
+  - OK to delete the merged branches `m1-static-board`, `m2-yjs-board`, `m3-sync-server` and `m4-presence` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
 - **First time on a machine:** `pnpm install`, then `pnpm --filter @syncboard/web exec playwright install chromium`. Run the full gate (see "Working a milestone") to confirm a clean start before changing anything.
 
 ## Product
@@ -189,16 +188,16 @@ Read this before touching `packages/core/src/presence`, `apps/sync/src/presence-
 
 ## Current status
 
-- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is done on branch `m4-presence` (2026-11-16), open as pull request 4, not merged yet.
+- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project.
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
-- The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. On `m4-presence` the board also shows who else is on it, their pointers, and who is editing or moving which card; everyone is a guest with a made-up name. Nothing is deployed, and there is no database yet.
+- The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. The board also shows who else is on it, their pointers, and who is editing or moving which card; everyone is a guest with a made-up name. Nothing is deployed, and there is no database yet.
 - [x] M0 Foundations (repo, CI, tooling)
 - [x] M1 Static board with drag and drop: mouse, touch and keyboard drag for cards and columns, inline editing, add and delete. 58 unit tests, 13 Playwright tests.
 - [x] M2 State in Yjs, two tabs in sync: Yjs document model and store, live title editing with `Y.Text`, BroadcastChannel provider, board frozen during a drag. 238 unit tests (convergence included), 22 Playwright tests (13 from M1, 9 with two tabs).
 - [ ] M3 Sync server + Supabase persistence + offline
   - [x] Stage 1: hibernation spike (passed), `apps/sync`, server provider + IndexedDB, connection status, loading and unavailable states, browser tests in CI. 255 core and 18 sync unit tests, 29 Playwright tests (22 earlier ones now through the server, 7 new).
   - [ ] Stage 2: `packages/db`, Supabase-backed snapshot store, Postgres-from-Worker spike.
-- [x] M4 Presence and cursors (on `m4-presence`): avatar stack, live pointers smoothed with a spring, "is editing" and "is moving this" tags, guest names, presence kept across hibernation, pointer traffic limited to 15 messages a second. 354 core and 51 sync unit tests, 46 Playwright tests (the 29 earlier ones, 17 new with two or three browsers). The whole browser suite passed four times in a row (184 runs, 2026-11-16).
+- [x] M4 Presence and cursors: avatar stack, live pointers smoothed with a spring, "is editing" and "is moving this" tags, guest names, presence kept across hibernation, pointer traffic limited to 15 messages a second. 354 core and 51 sync unit tests, 46 Playwright tests (the 29 earlier ones, 17 new with two or three browsers). The whole browser suite passed four times in a row (184 runs, 2026-11-16).
 - [ ] M5 Auth, sharing, permissions, demo board
 - [ ] M6 Motion polish in the app
 - [ ] M7 GSAP landing page
