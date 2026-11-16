@@ -8,6 +8,7 @@
     "./board-doc": "./src/board-doc/index.ts",
     "./ordering": "./src/ordering/index.ts",
     "./permissions": "./src/permissions/index.ts",
+    "./presence": "./src/presence/index.ts",
     "./sync-status": "./src/sync-status/index.ts",
     "./text-binding": "./src/text-binding/index.ts"
   },
@@ -22,7 +23,8 @@
     "eslint": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "^8.72.2",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "y-protocols": "^1.0.7"
   },
   "dependencies": {
     "fractional-indexing-jittered": "^1.1.0",

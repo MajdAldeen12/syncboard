@@ -2,7 +2,9 @@
 
 import type { SyncStatus } from "@syncboard/core/sync-status";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { AvatarStack } from "@/features/presence/avatar-stack";
 import { createBoardSession } from "@/lib/board-session";
+import { loadGuest } from "@/lib/guest-identity";
 import { SYNC_HOST, boardIdFromSearch } from "@/lib/sync-config";
 import { Board } from "./board";
 import { BoardLoading, BoardUnavailable } from "./board-placeholder";
@@ -23,7 +25,8 @@ export function DemoBoard() {
       : createBoardSession(boardIdFromSearch(window.location.search)),
   );
 
-  useEffect(() => session?.connect(SYNC_HOST), [session]);
+  // Until there is sign-in, everyone is a guest with a made-up name.
+  useEffect(() => session?.connect(SYNC_HOST, loadGuest()), [session]);
 
   const status = useSyncExternalStore(
     session?.subscribeStatus ?? subscribeToNothing,
@@ -39,7 +42,13 @@ export function DemoBoard() {
   return (
     <Board
       store={session.store}
-      headerEnd={<SyncIndicator status={status} />}
+      presence={session.presence}
+      headerEnd={
+        <div className="flex items-center gap-3">
+          <AvatarStack presence={session.presence} />
+          <SyncIndicator status={status} />
+        </div>
+      }
     />
   );
 }

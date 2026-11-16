@@ -1,0 +1,14 @@
+export { describeCursor, locateCursor } from "./cursor";
+export type { Box, CursorTarget, Point } from "./cursor";
+export { PRESENCE_COLORS, createGuest, initials } from "./guest";
+export { parsePresence, parseUser } from "./parse";
+export { ownChanges } from "./relay";
+export type { AwarenessChanges } from "./relay";
+export { createPresenceStore } from "./store";
+export type { AwarenessLike, PresenceStore } from "./store";
+export { PRESENCE_INTERVAL_MS, createThrottle } from "./throttle";
+export type { Throttle, ThrottleClock } from "./throttle";
+export { MAX_BOARD_COORDINATE, MAX_ID_LENGTH, MAX_NAME_LENGTH } from "./types";
+export type { CursorPosition, ItemRef, Presence, PresenceUser } from "./types";
+export { EMPTY_PRESENCE, itemKey, readPresence } from "./view";
+export type { Activity, Person, PresenceView, RemotePresence } from "./view";

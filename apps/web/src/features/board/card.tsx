@@ -6,7 +6,9 @@ import {
   type BoardStore,
   type CardView,
 } from "@syncboard/core/board";
+import type { Activity } from "@syncboard/core/presence";
 import { memo, useState } from "react";
+import { ActivityTag, activityOutline } from "@/features/presence/activity-tag";
 import { CloseIcon, PencilIcon } from "./icons";
 import { TextEditor, useFocusAfterEdit } from "./inline-text";
 
@@ -16,6 +18,8 @@ interface CardProps {
   /** The column the card is shown in. During a drag this can differ from `card.columnId`. */
   columnId: string;
   store: BoardStore;
+  /** Who else is editing or moving this card. The same list until it changes. */
+  activity?: readonly Activity[];
 }
 
 const ACTION_CLASS =
@@ -26,10 +30,12 @@ export const Card = memo(function Card({
   index,
   columnId,
   store,
+  activity,
 }: CardProps) {
   const [editing, setEditing] = useState(false);
   // A title can be empty for a moment while someone else is retyping it.
   const name = card.title || "Untitled card";
+  const outline = activityOutline(activity);
   const [editButtonRef, requestFocus] =
     useFocusAfterEdit<HTMLButtonElement>(editing);
 
@@ -57,10 +63,15 @@ export const Card = memo(function Card({
       aria-label={name}
       data-card-id={card.id}
       onDoubleClick={() => setEditing(true)}
-      className={`group/card relative shrink-0 rounded-lg bg-white px-2 py-1.5 text-sm shadow-sm ring-1 ring-black/5 outline-offset-1 focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-zinc-800 dark:ring-white/10 ${
-        editing ? "" : "cursor-grab select-none active:cursor-grabbing"
-      } ${isDragging ? "shadow-lg ring-blue-500/40" : ""}`}
+      style={outline.style}
+      className={`group/card relative shrink-0 rounded-lg bg-white px-2 py-1.5 text-sm shadow-sm outline-offset-1 focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-zinc-800 ${
+        outline.className || "ring-1 ring-black/5 dark:ring-white/10"
+      } ${editing ? "" : "cursor-grab select-none active:cursor-grabbing"} ${
+        isDragging ? "shadow-lg ring-blue-500/40" : ""
+      }`}
     >
+      <ActivityTag activity={activity} item="card" />
+
       {editing ? (
         <TextEditor
           open={() => store.editCardTitle(card.id)}
@@ -68,6 +79,7 @@ export const Card = memo(function Card({
           label={`Edit card: ${name}`}
           maxLength={MAX_TITLE_LENGTH}
           multiline
+          item={{ kind: "card", id: card.id }}
           onDone={(endedBy) => {
             if (endedBy === "keyboard") requestFocus();
             setEditing(false);

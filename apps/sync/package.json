@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@syncboard/core": "workspace:*",
+    "lib0": "^0.2.117",
     "partyserver": "^0.5.10",
     "y-partyserver": "^2.2.0",
     "yjs": "catalog:"
@@ -22,6 +23,7 @@
     "typescript": "catalog:",
     "typescript-eslint": "^8.72.2",
     "vitest": "catalog:",
-    "wrangler": "^4.161.0"
+    "wrangler": "^4.161.0",
+    "y-protocols": "^1.0.7"
   }
 }

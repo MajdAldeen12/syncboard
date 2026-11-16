@@ -4,13 +4,14 @@ Real-time collaborative kanban web app. Free public tool and portfolio piece: vi
 
 **Keep this file current.** Update "Resume here" and "Current status" at the end of every working session and whenever a milestone or decision changes. Work may continue from a different Claude account, so anything not written here or in `docs/` is lost.
 
-## Resume here (last updated 2026-11-14)
+## Resume here (last updated 2026-11-16)
 
-- **State:** `main` holds milestones 0 to 2 and M3 stage 1 (sync server, IndexedDB, connection status, browser tests in CI), merged through pull request 3 on 2026-11-14. Both CI jobs pass, the browser tests included. No open pull requests, no work in flight.
-- **Next:** M3 stage 2 (Supabase persistence). It cannot start until the owner has a development Supabase project. See "Next: M3 stage 2" below.
+- **State:** `main` holds milestones 0 to 2 and M3 stage 1. Branch `m4-presence`, cut from `main` at `f057c71`, holds M4 (presence and live cursors). **It is pushed and open as pull request 4, not merged yet.** The full gate passes on the branch locally; check the CI run on the pull request before merging.
+- **Next:** with the owner's OK, squash-merge pull request 4 (see "Working a milestone"), then bring this section and "Current status" up to date on `main`. After that M3 stage 2 (Supabase persistence, still blocked, see below) or M5.
 - **Waiting on the owner:**
+  - OK to merge pull request 4 (M4).
   - A development Supabase project, needed for M3 stage 2.
-  - A look at `/demo` in two browsers. `pnpm dev` now starts the sync server too. M2 and M3 stage 1 were verified by automated tests only.
+  - A look at `/demo` as two people: two different browsers, or one normal and one private window. Two tabs of the same browser are the same guest, so they show one avatar (and each other's pointer). `pnpm dev` starts the sync server too. M2, M3 stage 1 and M4 were verified by automated tests.
   - OK to delete the merged branches `m1-static-board`, `m2-yjs-board` and `m3-sync-server` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
 - **First time on a machine:** `pnpm install`, then `pnpm --filter @syncboard/web exec playwright install chromium`. Run the full gate (see "Working a milestone") to confirm a clean start before changing anything.
 
@@ -30,13 +31,14 @@ Multiple people drag cards, edit text and see each other's cursors and presence.
 ## Layout
 
 - `apps/web`: Next.js app. `(marketing)` = landing, `(app)` = boards, `src/server` = server-only code
-- `apps/sync`: the sync server, a Cloudflare Worker. `src/index.ts` (routing, `/health`), `src/board-room.ts` (one Durable Object per board), `src/room-load.ts` (what a room starts with), `src/seed.ts` (which boards exist without being created), `src/durable-object-store.ts` (where the document is kept)
+- `apps/sync`: the sync server, a Cloudflare Worker. `src/index.ts` (routing, `/health`), `src/board-room.ts` (one Durable Object per board), `src/room-load.ts` (what a room starts with), `src/seed.ts` (which boards exist without being created), `src/durable-object-store.ts` (where the document is kept), `src/presence-relay.ts` (who is on the board, kept with each connection so that it survives hibernation)
 - `apps/web/src/features/board`: the board UI, including `sync-indicator.tsx` and `board-placeholder.tsx` (loading and unavailable states)
-- `apps/web/e2e`: Playwright tests. `board.spec.ts` one tab, `sync.spec.ts` two tabs, `server.spec.ts` two browsers, offline, storage. `helpers.ts` shared, `ports.ts` the test servers' addresses
-- `apps/web/src/lib`: `board-session.ts` (a board's document, saved copy, server connection and status), `sync-config.ts` (server address, test boards), `bind-text-field.ts` (ties a text field to a `TextSession`)
-- `packages/core`: pure TS. Exists now: `board` (store interface, in-memory store, seed, `store-contract.ts` = the tests every store must pass), `board-doc` (Yjs schema, mutations, state reader, `normalizeBoard`, Yjs store, `testing.ts` = test helpers), `ordering`, `permissions`, `sync-status` (close codes, what to show about the connection, stalled-handshake detector), `text-binding` (text diff, caret shift, `TextSession` type). Planned: `ticket`, `presence`
+- `apps/web/src/features/presence`: `avatar-stack.tsx` (who is here), `cursor-overlay.tsx` (other people's pointers), `use-publish-cursor.ts` (this tab's pointer), `activity-tag.tsx` ("Ana is editing" on a card or column), `presence-context.tsx` (`usePresence`, `useAnnounceEditing`)
+- `apps/web/e2e`: Playwright tests. `board.spec.ts` one tab, `sync.spec.ts` two tabs, `server.spec.ts` two browsers, offline, storage. `presence.spec.ts` two browsers: avatars, pointers, tags, message counts. `helpers.ts` shared, `ports.ts` the test servers' addresses
+- `apps/web/src/lib`: `board-session.ts` (a board's document, saved copy, server connection and status), `sync-config.ts` (server address, test boards), `bind-text-field.ts` (ties a text field to a `TextSession`), `guest-identity.ts` (the made-up name and colour of a browser that has not signed in)
+- `packages/core`: pure TS. Exists now: `board` (store interface, in-memory store, seed, `store-contract.ts` = the tests every store must pass), `board-doc` (Yjs schema, mutations, state reader, `normalizeBoard`, Yjs store, `testing.ts` = test helpers), `ordering`, `permissions`, `sync-status` (close codes, what to show about the connection, stalled-handshake detector), `text-binding` (text diff, caret shift, `TextSession` type), `presence` (the shape of one client's presence, `parsePresence`, `readPresence`, cursor geometry, the throttle, `createPresenceStore`, guests). Planned: `ticket`
 - `packages/db`: Drizzle schema, client, queries (M3 stage 2, not created yet)
-- `docs/PLAN.md`: full plan with milestones and "done" checks. `docs/decisions/`: decision records
+- `docs/PLAN.md`: full plan with milestones and "done" checks. `docs/decisions/`: decision records (0001 hibernation, 0002 presence against hibernation, 0003 cursor coordinates)
 
 ## Architecture in brief
 
@@ -46,6 +48,7 @@ Multiple people drag cards, edit text and see each other's cursors and presence.
 - Card and column titles are `Y.Text`, edited live through a `TextSession` (`BoardStore.editCardTitle` / `editColumnTitle`).
 - `boards.doc_generation` identifies the current doc; IndexedDB and tickets are keyed by it.
 - If a snapshot fails to load, the room rejects connections. It never serves an empty doc.
+- Presence (who is here, pointers, who is editing what) travels as Yjs awareness messages. It is never saved and never trusted: a client can say anything about itself, so nothing may decide access from it.
 
 ## Rules
 
@@ -110,6 +113,9 @@ Stage 1 is done (see "Sync server: how it works and why"). The M3 done checks ar
 - pnpm reports an unmet peer: wrangler wants `@cloudflare/workers-types` 5, y-partyserver wants 4. Version 4 is installed; types come from `wrangler types` either way. Harmless so far.
 - Pushing a change under `.github/workflows` needs the `workflow` scope on the `gh` login. It was granted on this machine; elsewhere the owner runs `gh auth refresh -h github.com -s workflow`.
 - `apps/web/e2e` tests must drive drags with stepped pointer moves (`dragWithMouse`). A single jump from press to release never starts a dnd-kit drag, which is also why Claude's browser-pane drag gesture does not work on the board.
+- `wrangler dev` reloads the worker whenever a file under `apps/sync/src` is saved, formatting included, and every room starts again. Leave those files alone while a measurement or `pnpm e2e` is running.
+- Claude's Bash tool on this machine fails on an inline script (heredoc) that contains an apostrophe: `unexpected EOF while looking for matching`. Write the script to a file and run the file.
+- A second look at a failing browser test is cheap: `apps/web/test-results/<test>/error-context.md` holds the page as it was, as an accessibility tree.
 
 ## Drag and drop: how it works and why
 
@@ -153,24 +159,46 @@ Read this before touching `apps/sync` or `apps/web/src/lib/board-session.ts`. Th
 - **Saving is y-partyserver's debounce only:** 2 s after the last change, at most 10 s after the first. It does not save when a room empties, despite its README; the pending timer keeps the object awake, so nothing is lost. A crash inside that window loses nothing either, because clients resend what the server is missing when they reconnect.
 - **Stage 1 keeps the document in the Durable Object's own storage** (`durableObjectSnapshotStore`), one value, refused above 1.5 MB. Stage 2 adds Supabase behind the same `SnapshotStore` interface.
 - **Test boards.** With `ALLOW_TEST_BOARDS=1` the server also creates boards named `test-*` (each test gets its own) and fails every load of `test-fail-*`. The browser side is `NEXT_PUBLIC_ALLOW_TEST_BOARDS=1` and `/demo?board=test-...`. Both default to off, and only `pnpm e2e` turns them on. **Never set either in a deployment.**
-- **In the browser, `createBoardSession` does no I/O**, so it can be called while rendering; `connect()` opens IndexedDB and the socket and returns the function that closes them. The status shown comes from the pure `syncStatus` in `packages/core`.
+- **In the browser, `createBoardSession` does no I/O**, so it can be called while rendering; `connect(host, user)` opens IndexedDB and the socket, joins the board as `user`, and returns the function that closes them. The status shown comes from the pure `syncStatus` in `packages/core`.
 - **A connection only counts as working once a sync has completed.** A server that refuses a board first accepts the socket and then closes it. Treating "socket open" as success made the screen flip between loading and unavailable on every retry.
 - **The app trusts the browser's `offline` and `online` events** and hangs up or redials itself. The provider only notices a dead connection when the socket finishes closing, which can be long after the network has gone.
 - **Tabs of one browser also talk directly** through the provider's built-in BroadcastChannel (left on). It is faster than the round trip and keeps tabs in step while the server is away. Two different browsers are connected only by the server.
 - **No connect timeout exists in WebSockets or in the provider.** `createStallDetector` abandons an attempt after 8 s; closing the socket makes the provider retry.
 
+## Presence: how it works and why
+
+Read this before touching `packages/core/src/presence`, `apps/sync/src/presence-relay.ts` or `apps/web/src/features/presence`. The measurements are in `docs/decisions/0002-presence-and-hibernation.md`, the cursor format in `docs/decisions/0003-cursor-coordinates.md`.
+
+- **Nothing repeats on a timer.** y-partyserver switches off the awareness protocol's 15-second renewal and 30-second timeout on both sides. That is what lets a board with idle tabs sleep: measured, 0 messages and 0 wake-ups in 60 s. The price is that nothing ever times out. Only the server can say that someone has gone, and it does, in `onClose`. **Do not add a heartbeat.**
+- **The room relays presence itself.** y-partyserver keeps awareness states in the room's memory, which hibernation empties: after a wake-up a newcomer saw nobody and a closed tab stayed on screen for good. `BoardRoom` now handles awareness messages in `onConnect`, `onMessage` and `onClose` with the rules in `presence-relay.ts`; document messages still go to y-partyserver.
+- **Each connection's last state lives in its WebSocket attachment** (`connection.setState`, key `presence`). Attachments survive hibernation. y-partyserver keeps a key of its own in the same object, so always spread the previous state when setting.
+- **A connection speaks for one client id**, the first it announces. Entries about other ids, and entries that are not newer, are dropped. A goodbye is sent at the stored clock, never a higher one: browsers remove a state only for a goodbye at exactly their clock, which is what keeps a tab that has already reconnected from being removed by its old connection closing.
+- **The browser sends only its own state.** The provider sends back every awareness change it sees, other people's included; with N people one pointer move cost N billed messages. `board-session.ts` wraps the provider's `_awarenessUpdateHandler` with `ownChanges`. That field has an underscore: check it when upgrading y-partyserver. The traffic test in `presence.spec.ts` fails if it stops working.
+- **One throttle for everything a tab says about itself** (`createPresenceStore`): at most one message per 66 ms, the last value always sent, nothing and no timer while nothing changes. Only the announcement on connect bypasses it.
+- **The view has three parts that keep their identity** until they change: `others` (one per tab, for pointers), `people` (one per person, for avatars), `activity` (who is editing or moving what). A component reads one part with `usePresence(store, (view) => view.people)`. The selector must return a part as it is. A `.map` or `.filter` inside it returns a new value every time and `useSyncExternalStore` loops.
+- **A person is a user id, a pointer is a tab.** Two tabs of one browser show one avatar and each other's pointer. That is deliberate: someone trying the demo in two tabs sees a pointer move.
+- **A cursor says what it is over** (card, column, or the bare board) and where on it. The overlay finds that element on this screen. It puts every pointer back in place at once on scroll and resize; the spring is only for movement between messages.
+- **While dragging, the pointer is tied to the column**, and elements carrying `data-dnd-dragging` or `data-dnd-placeholder` are skipped when looking under it: the held card is always under the pointer.
+- **Pointer moves are listened for on `window` in the capture phase**, so that they still arrive while dnd-kit handles a drag.
+- **Everything received is parsed** by `parsePresence`. A colour reaches a `style` attribute only as `#rrggbb`. Presence from this browser's own storage goes through `parseUser` too.
+- **Guests are known in one place**, `lib/guest-identity.ts`. `session.connect(host, user)` takes any `PresenceUser`, so M5 passes the signed-in user instead.
+- **A prop that holds a ref must be named `...Ref`.** Otherwise `react-hooks/preserve-manual-memoization` rejects a `useCallback` that reads `.current`.
+- **Measuring hibernation:** wrap `BoardRoom` in a subclass that logs constructions, messages and closes, in a temporary folder with its own wrangler config, and drive it with Node clients (`y-partyserver/provider` works with Node's own WebSocket). Do not save any file under `apps/sync/src` while measuring: `wrangler dev` reloads on every change and every room starts again.
+- **The tag is real text inside the card**, so that it is read out with the card. Anything that reads a card's text gets it too: `cardsIn` in the test helpers strips it, and three older two-tab tests failed until it did.
+- **In the browser tests,** `silence(page)` followed by closing the context is a tab that dies without saying goodbye. The presence tests passed as soon as the components existed, so each rule was then broken on purpose to see a test fail: no list for a newcomer, no goodbye on close, states sent back, no spring, no anchoring, no throttle, window coordinates, no re-placing on scroll, edits and drags not announced, the guest not kept. Do the same when adding a rule.
+
 ## Current status
 
-- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started.
+- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is done on branch `m4-presence` (2026-11-16), open as pull request 4, not merged yet.
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
-- The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. Nothing is deployed, and there is no database yet.
+- The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. On `m4-presence` the board also shows who else is on it, their pointers, and who is editing or moving which card; everyone is a guest with a made-up name. Nothing is deployed, and there is no database yet.
 - [x] M0 Foundations (repo, CI, tooling)
 - [x] M1 Static board with drag and drop: mouse, touch and keyboard drag for cards and columns, inline editing, add and delete. 58 unit tests, 13 Playwright tests.
 - [x] M2 State in Yjs, two tabs in sync: Yjs document model and store, live title editing with `Y.Text`, BroadcastChannel provider, board frozen during a drag. 238 unit tests (convergence included), 22 Playwright tests (13 from M1, 9 with two tabs).
 - [ ] M3 Sync server + Supabase persistence + offline
   - [x] Stage 1: hibernation spike (passed), `apps/sync`, server provider + IndexedDB, connection status, loading and unavailable states, browser tests in CI. 255 core and 18 sync unit tests, 29 Playwright tests (22 earlier ones now through the server, 7 new).
   - [ ] Stage 2: `packages/db`, Supabase-backed snapshot store, Postgres-from-Worker spike.
-- [ ] M4 Presence and cursors
+- [x] M4 Presence and cursors (on `m4-presence`): avatar stack, live pointers smoothed with a spring, "is editing" and "is moving this" tags, guest names, presence kept across hibernation, pointer traffic limited to 15 messages a second. 354 core and 51 sync unit tests, 46 Playwright tests (the 29 earlier ones, 17 new with two or three browsers). The whole browser suite passed four times in a row (184 runs, 2026-11-16).
 - [ ] M5 Auth, sharing, permissions, demo board
 - [ ] M6 Motion polish in the app
 - [ ] M7 GSAP landing page
@@ -188,7 +216,15 @@ Read this before touching `apps/sync` or `apps/web/src/lib/board-session.ts`. Th
 - M9: a deployment must set `NEXT_PUBLIC_SYNC_HOST`; the default is the local dev address.
 - The provider registers an `unload` listener, which Chrome reports as "Permissions policy violation: unload is not allowed". Harmless, from y-partyserver.
 - An empty board (every column deleted) counts as content because `meta` is set, so it shows as an empty board, not as loading. Intended.
-- M4: while a card or column is held, changes from other people are not drawn. Fine for a mouse drag of a second or two; a keyboard drag can be held for long. Consider a "changes waiting" hint, or showing that someone else is dragging.
+- While a card or column is held, changes from other people are not drawn for the person holding it. Fine for a mouse drag of a second or two; a keyboard drag can be held for long. Since M4 the others see "… is moving this" on the held card; the holder still gets no "changes waiting" hint.
+- M5: presence identity comes from the browser (a guest in `localStorage`). With sign-in, pass the signed-in user to `session.connect`, and decide whether the server should stamp the name and colour from the ticket onto relayed states. Guests cannot choose or change their name.
+- M5: add a test that a read-only (viewer) connection's presence is relayed. The room never asks `isReadOnly` for presence, but there is no viewer to test with yet.
+- M5: the server does not limit how often a connection sends presence; the 15 a second is the browser's own restraint. Add a per-connection rate limit with the other demo caps.
+- M5 or M9, when the sync server is first deployed: repeat the scenarios of `docs/decisions/0002` on Cloudflare, in particular how quickly a client that vanishes without closing (network lost, lid shut) is reported. Until its close is reported that person stays on screen, because nothing times out.
+- M6: avatars and pointers appear and disappear without animation. A pointer outside the visible part of the board is simply not visible; consider a marker at the edge.
+- M8: people joining and leaving is not announced to screen readers (the avatar list is labelled, the pointers are hidden from assistive technology). Decide whether a polite live region is wanted. More than five people collapse into "+N".
+- M8: touch devices report no pointer. Two people editing one card show "Ana and 1 more"; check the wording.
+- `y-partyserver` upgrade: `board-session.ts` relies on the provider's `_awarenessUpdateHandler`, and `BoardRoom` bypasses the server's awareness handling. Re-run `presence.spec.ts` and re-read both when the version changes. Worth reporting upstream: awareness states are lost on wake-up, and the provider echoes received states.
 - M5: data from other clients is only shape-checked. A malformed `order` key (not a valid fractional index) passes `readBoardState` and makes `orderAtIndex` throw on the next move beside it. Validate keys and ids when reading, before the public demo opens.
 - M5: title and description length limits apply to what one client writes. Two people adding text at once can leave a title longer than `MAX_TITLE_LENGTH`; the server only limits total document size.
 - M5: `createdBy` on new cards is the string "anonymous" until there are users (`userId` option of `createYjsBoardStore`).
@@ -233,3 +269,11 @@ Read this before touching `apps/sync` or `apps/web/src/lib/board-session.ts`. Th
 - Browser tests give every test its own board (`test-*`) on a real local sync server rather than mocking it or resetting one shared board (M3). Costs two test-only switches, both off by default.
 - The Durable Object is tested through the browser tests, not in workerd unit tests (M3): `@cloudflare/vitest-pool-workers` does not support Vitest 5 yet.
 - Install scripts stay off for `esbuild` and `workerd` (M3). Both run from their platform packages.
+- Presence across hibernation (M4): the room relays awareness itself and keeps each connection's last state in its WebSocket attachment; no renewal timer. Chosen over restoring the protocol's 15-second renewals (every open tab would wake the room four times a minute) and over asking clients to announce themselves again after a wake. `docs/decisions/0002-presence-and-hibernation.md`.
+- Cursor positions (M4) name the card or column the pointer is over, with fractions of its box, and fall back to pixels from the board's corner. A change from the plan's "board coordinates", which go wrong in a column that has scrolled. `docs/decisions/0003-cursor-coordinates.md`.
+- Presence is sent at most once per 66 ms per tab, for everything a tab says about itself, not only the pointer (M4).
+- One avatar per user id, one pointer per tab; a person's own other tabs are shown as pointers (M4).
+- Guests (M4): a name such as "Quiet Otter" and one of ten colours, made up in the browser and kept in `localStorage` under `syncboard:guest`. Every palette colour carries white text at 4.5:1 or better; a test checks it.
+- A card someone else is holding shows "… is moving this" (M4), with the same tag as "… is editing". Column titles get the editing tag too.
+- `motion` is pinned to 14.10.1 (M4) and so far used only for the spring that smooths pointers. Avatar and pointer enter and exit animation is left to M6.
+- `apps/sync` depends on `lib0` directly (M4) for reading and writing awareness messages; `y-protocols` is a test-only dependency of `apps/sync` and `packages/core`, so the tests run against the real protocol.

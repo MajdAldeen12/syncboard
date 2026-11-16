@@ -10,6 +10,7 @@ import {
   type CardView,
 } from "@syncboard/core/board";
 import { rebaseIndex } from "@syncboard/core/ordering";
+import type { ItemRef, PresenceStore } from "@syncboard/core/presence";
 import {
   useEffect,
   useMemo,
@@ -18,6 +19,12 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { CursorOverlay } from "@/features/presence/cursor-overlay";
+import {
+  PresenceProvider,
+  usePresence,
+} from "@/features/presence/presence-context";
+import { usePublishCursor } from "@/features/presence/use-publish-cursor";
 import { AddItem } from "./add-item";
 import { Column } from "./column";
 
@@ -60,11 +67,13 @@ function WhenDragIdle({ onIdle }: { onIdle: () => void }) {
 
 interface BoardProps {
   store: BoardStore;
+  /** Who else is on the board, and what this tab tells them. */
+  presence: PresenceStore;
   /** Shown at the end of the title row, for instance the sync status. */
   headerEnd?: ReactNode;
 }
 
-export function Board({ store, headerEnd }: BoardProps) {
+export function Board({ store, presence, headerEnd }: BoardProps) {
   const live = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,
@@ -96,6 +105,14 @@ export function Board({ store, headerEnd }: BoardProps) {
 
   const board = drag?.board ?? live;
 
+  // Presence. Other people's pointers are drawn over the board, this tab's
+  // own pointer is reported to them, and cards and columns are told who
+  // else has them open or in hand.
+  const scroller = useRef<HTMLDivElement>(null);
+  const holding = useRef<ItemRef | null>(null);
+  usePublishCursor(presence, scroller, holding);
+  const activity = usePresence(presence, (view) => view.activity);
+
   const cardsById = useMemo(() => {
     const map = new Map<string, CardView>();
     for (const column of board.columns) {
@@ -106,7 +123,17 @@ export function Board({ store, headerEnd }: BoardProps) {
 
   return (
     <DragDropProvider
-      onDragStart={() => {
+      onDragStart={(event) => {
+        const source = event.operation.source;
+        if (source) {
+          const item: ItemRef = {
+            kind: source.type === "column" ? "column" : "card",
+            id: String(source.id),
+          };
+          holding.current = item;
+          presence.startDragging(item);
+        }
+
         const snapshot = store.getSnapshot();
         setSettling(null);
         setDrag({ board: snapshot, layout: layoutOf(snapshot) });
@@ -120,6 +147,9 @@ export function Board({ store, headerEnd }: BoardProps) {
         );
       }}
       onDragEnd={(event) => {
+        holding.current = null;
+        presence.stopDragging();
+
         const { source, activatorEvent } = event.operation;
         const sortable = source && isSortable(source) ? source : null;
         const id = sortable ? String(sortable.id) : "";
@@ -182,42 +212,56 @@ export function Board({ store, headerEnd }: BoardProps) {
         />
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex shrink-0 items-center justify-between gap-4 px-4 pt-4">
-          <h1 className="text-lg font-semibold tracking-tight">
-            {board.title}
-          </h1>
-          {headerEnd}
-        </div>
-
-        <div className="flex min-h-0 flex-1 items-start gap-3 overflow-x-auto p-4">
-          {board.columns.map((column, index) => {
-            const draftIds = drag?.layout[column.id];
-            const cards = draftIds
-              ? draftIds.flatMap((id) => cardsById.get(id) ?? [])
-              : column.cards;
-
-            return (
-              <Column
-                key={column.id}
-                column={column}
-                cards={cards}
-                index={index}
-                store={store}
-              />
-            );
-          })}
-
-          <div className="w-72 shrink-0">
-            <AddItem
-              label="Add a column"
-              placeholder="Column title"
-              maxLength={MAX_TITLE_LENGTH}
-              onAdd={(title) => store.addColumn(title) !== null}
-            />
+      <PresenceProvider value={presence}>
+        {/* Positioned, so that the pointers can be laid over the board. */}
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div className="flex shrink-0 items-center justify-between gap-4 px-4 pt-4">
+            <h1 className="text-lg font-semibold tracking-tight">
+              {board.title}
+            </h1>
+            {headerEnd}
           </div>
+
+          <div
+            ref={scroller}
+            data-board-scroll
+            className="flex min-h-0 flex-1 items-start gap-3 overflow-x-auto p-4"
+          >
+            {board.columns.map((column, index) => {
+              const draftIds = drag?.layout[column.id];
+              const cards = draftIds
+                ? draftIds.flatMap((id) => cardsById.get(id) ?? [])
+                : column.cards;
+
+              return (
+                <Column
+                  key={column.id}
+                  column={column}
+                  cards={cards}
+                  index={index}
+                  store={store}
+                  activity={activity}
+                />
+              );
+            })}
+
+            <div className="w-72 shrink-0">
+              <AddItem
+                label="Add a column"
+                placeholder="Column title"
+                maxLength={MAX_TITLE_LENGTH}
+                onAdd={(title) => store.addColumn(title) !== null}
+              />
+            </div>
+          </div>
+
+          <CursorOverlay
+            presence={presence}
+            scrollerRef={scroller}
+            layout={drag?.layout ?? board}
+          />
         </div>
-      </div>
+      </PresenceProvider>
     </DragDropProvider>
   );
 }
