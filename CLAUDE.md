@@ -6,10 +6,10 @@ Real-time collaborative kanban web app. Free public tool and portfolio piece: vi
 
 ## Resume here (last updated 2026-11-16)
 
-- **State:** `main` holds milestones 0 to 2 and M3 stage 1. Branch `m4-presence`, cut from `main` at `f057c71`, holds M4 (presence and live cursors) in one commit. **It is committed locally only: not pushed, no pull request.** The full gate passes on the branch.
-- **Next:** with the owner's OK, push `m4-presence`, open the pull request and squash-merge it (see "Working a milestone"). After that M3 stage 2 (Supabase persistence, still blocked, see below) or M5.
+- **State:** `main` holds milestones 0 to 2 and M3 stage 1. Branch `m4-presence`, cut from `main` at `f057c71`, holds M4 (presence and live cursors). **It is pushed and open as pull request 4, not merged yet.** The full gate passes on the branch locally; check the CI run on the pull request before merging.
+- **Next:** with the owner's OK, squash-merge pull request 4 (see "Working a milestone"), then bring this section and "Current status" up to date on `main`. After that M3 stage 2 (Supabase persistence, still blocked, see below) or M5.
 - **Waiting on the owner:**
-  - OK to push `m4-presence` and open its pull request.
+  - OK to merge pull request 4 (M4).
   - A development Supabase project, needed for M3 stage 2.
   - A look at `/demo` as two people: two different browsers, or one normal and one private window. Two tabs of the same browser are the same guest, so they show one avatar (and each other's pointer). `pnpm dev` starts the sync server too. M2, M3 stage 1 and M4 were verified by automated tests.
   - OK to delete the merged branches `m1-static-board`, `m2-yjs-board` and `m3-sync-server` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
@@ -189,7 +189,7 @@ Read this before touching `packages/core/src/presence`, `apps/sync/src/presence-
 
 ## Current status
 
-- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is done on branch `m4-presence` (2026-11-16), not yet pushed or merged.
+- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is done on branch `m4-presence` (2026-11-16), open as pull request 4, not merged yet.
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
 - The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. On `m4-presence` the board also shows who else is on it, their pointers, and who is editing or moving which card; everyone is a guest with a made-up name. Nothing is deployed, and there is no database yet.
 - [x] M0 Foundations (repo, CI, tooling)
