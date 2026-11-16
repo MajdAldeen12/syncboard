@@ -7,13 +7,13 @@ Real-time collaborative kanban web app. Free public tool and portfolio piece: vi
 ## Resume here (last updated 2026-11-17)
 
 - **State:** `main` holds milestones 0 to 2, M3 stage 1 and M4 (presence and live cursors). M4 was merged through pull request 4 on 2026-11-16; both CI jobs passed on it, the 17 new browser tests included. No open pull requests.
-- **In flight: M6 (motion polish in the app)**, on branch `m6-motion-polish`, cut from `main` at `8f81330` on 2026-11-16. The branch holds reading and planning only: no application code or test has been changed, and its only commit is this file. It is local, not pushed.
+- **In flight: M6 (motion polish in the app)**, on branch `m6-motion-polish`, cut from `main` at `8f81330` on 2026-11-16. The branch holds reading and planning only: no application code or test has been changed, and its commits touch only this file. It is pushed to GitHub (`origin/m6-motion-polish`); no pull request.
 - **Next:** carry on with M6 from "Next: M6" below. That section holds the whole brief, what was found out, the planned approach and the order of work. The first thing still to do is the spike that proves the layout-animation approach. M3 stage 2 (Supabase persistence) and M5 (sign-in, sharing, permissions) cannot start until the owner has a development Supabase project. M7 (the landing page) needs no accounts either.
 - **Waiting on the owner:**
   - A development Supabase project, needed for M3 stage 2 and M5.
   - A look at `/demo` as two people: two different browsers, or one normal and one private window. Two tabs of the same browser are the same guest, so they show one avatar (and each other's pointer). `pnpm dev` starts the sync server too. M2, M3 stage 1 and M4 were verified by automated tests.
   - OK to delete the merged branches `m1-static-board`, `m2-yjs-board`, `m3-sync-server` and `m4-presence` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
-- **First time on a machine:** `pnpm install`, then `pnpm --filter @syncboard/web exec playwright install chromium`. Run the full gate (see "Working a milestone") to confirm a clean start before changing anything. To continue M6: `git switch m6-motion-polish` (on another machine the branch has to be pushed first, which needs the owner's OK).
+- **First time on a machine:** `pnpm install`, then `pnpm --filter @syncboard/web exec playwright install chromium`. Run the full gate (see "Working a milestone") to confirm a clean start before changing anything. To continue M6: `git fetch origin`, then `git switch m6-motion-polish`.
 
 ## Product
 
