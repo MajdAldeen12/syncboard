@@ -122,9 +122,7 @@ test.describe("two tabs mirror each other", () => {
     await page.getByRole("button", { name: "Add a column" }).click();
     await page.getByRole("textbox", { name: "Column title" }).fill("Later");
     await page.keyboard.press("Enter");
-    // Close the form. Left open, its field keeps focus, and the browser
-    // scrolls the board back to it when a drag starts (see Open items).
-    await page.keyboard.press("Escape");
+    // The form stays open with its field focused; dragging must still work.
     await expect
       .poll(() => columnNames(other))
       .toEqual(["Backlog", "In progress", "Review", "Done", "Later"]);

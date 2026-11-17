@@ -191,3 +191,110 @@ test.describe("a reorder made by someone else", () => {
     expect(track.between, JSON.stringify(track)).toBe(0);
   });
 });
+
+/**
+ * Starts noting every transform seen on elements matching `selector`, once
+ * per frame. Returns once frames are arriving (see `startTracking`).
+ */
+async function startSampling(page: Page, selector: string): Promise<void> {
+  await page.evaluate(
+    (selector) =>
+      new Promise<void>((resolve) => {
+        const state = window as unknown as {
+          __seen: string[];
+          __sampling: boolean;
+        };
+        state.__seen = [];
+        state.__sampling = true;
+        let frames = 0;
+        const frame = () => {
+          if (!state.__sampling) return;
+          for (const element of document.querySelectorAll(selector)) {
+            const transform = getComputedStyle(element).transform;
+            if (!state.__seen.includes(transform)) state.__seen.push(transform);
+          }
+          frames += 1;
+          if (frames === 3) resolve();
+          requestAnimationFrame(frame);
+        };
+        requestAnimationFrame(frame);
+      }),
+    selector,
+  );
+}
+
+/** Stops sampling, and returns the transforms that moved something. */
+async function stopSampling(page: Page): Promise<string[]> {
+  const seen = await page.evaluate(() => {
+    const state = window as unknown as {
+      __seen: string[];
+      __sampling: boolean;
+    };
+    state.__sampling = false;
+    return state.__seen;
+  });
+  return seen.filter(
+    (transform) =>
+      transform !== "none" && transform !== "matrix(1, 0, 0, 1, 0, 0)",
+  );
+}
+
+for (const reducedMotion of ["no-preference", "reduce"] as const) {
+  const moves = reducedMotion === "no-preference";
+  const what = moves ? "moves" : "only fades, with reduced motion";
+
+  test.describe(`motion with prefers-reduced-motion: ${reducedMotion}`, () => {
+    test.beforeEach(async ({ page }) => {
+      await page.emulateMedia({ reducedMotion });
+    });
+
+    test(`the card dialog ${what}`, async ({ page }) => {
+      await openBoard(page);
+      await startSampling(page, "[data-modal-panel]");
+      await card(page, FIRST_CARD).hover();
+      await page
+        .getByRole("button", { name: `Open card: ${FIRST_CARD}`, exact: true })
+        .click();
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await page.waitForTimeout(400);
+      const moved = await stopSampling(page);
+
+      if (moves) expect(moved.length).toBeGreaterThan(0);
+      else expect(moved).toEqual([]);
+    });
+
+    test(`a page reached from the home page ${what}`, async ({ page }) => {
+      await page.goto("/");
+      await startSampling(page, "[data-page-enter]");
+      await page.getByRole("link", { name: "Open the demo board" }).click();
+      await expect(page.locator("[data-page-enter]")).toBeVisible();
+      await page.waitForTimeout(500);
+      const moved = await stopSampling(page);
+
+      if (moves) expect(moved.length).toBeGreaterThan(0);
+      else expect(moved).toEqual([]);
+    });
+
+    test(`someone arriving ${what}`, async ({ page, browser }) => {
+      const boardId = newBoardId();
+      await openBoard(page, boardId);
+      await startSampling(
+        page,
+        "[data-presence-person], [data-presence-cursor-body]",
+      );
+      const otherBrowser = await browser.newContext();
+      const other = await otherBrowser.newPage();
+      await openBoard(other, boardId);
+      await expect(page.locator("[data-presence-person]")).toHaveCount(2);
+      const box = await card(other, SECOND_CARD).boundingBox();
+      await other.mouse.move(box!.x + 20, box!.y + 10, { steps: 4 });
+      await expect(page.locator("[data-presence-cursor-body]")).toHaveCount(1);
+      await page.waitForTimeout(400);
+      const moved = await stopSampling(page);
+      await otherBrowser.close();
+
+      if (moves) expect(moved.length).toBeGreaterThan(0);
+      else expect(moved).toEqual([]);
+    });
+  });
+}

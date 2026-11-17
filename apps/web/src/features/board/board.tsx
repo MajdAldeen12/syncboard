@@ -163,6 +163,17 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
       onBeforeDragStart={() => {
         // dnd-kit measures what it picks up. Nothing may be mid-slide then.
         animator.current?.finish();
+        // A focused text field elsewhere on the board (the add-a-column form
+        // left open, say) makes the browser scroll back to it as the drag
+        // starts, and the item lands far from where it was dropped. Leaving
+        // the field keeps what was typed in it.
+        const focused = document.activeElement;
+        if (
+          focused instanceof HTMLInputElement ||
+          focused instanceof HTMLTextAreaElement
+        ) {
+          focused.blur();
+        }
       }}
       onDragStart={(event) => {
         const source = event.operation.source;

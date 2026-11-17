@@ -72,6 +72,34 @@ test.describe("dragging with the mouse", () => {
       .poll(() => columnNames(page))
       .toEqual(["In progress", "Backlog", "Review", "Done"]);
   });
+
+  test("reorders columns while a field scrolled out of view has focus", async ({
+    page,
+  }) => {
+    // The form stays open after adding, with its field focused, at the far
+    // end of the board. Scrolled back to the start, a drag there used to make
+    // the browser scroll to the field as the drag began.
+    await page.getByRole("button", { name: "Add a column" }).click();
+    await page.getByRole("textbox", { name: "Column title" }).fill("Later");
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("textbox", { name: "Column title" }),
+    ).toBeFocused();
+    await page
+      .locator("[data-board-scroll]")
+      .evaluate((board) => board.scrollTo({ left: 0 }));
+
+    await dragWithMouse(
+      page,
+      page.getByRole("button", { name: "Reorder column Backlog" }),
+      column(page, "In progress"),
+      { x: 60, y: 0 },
+    );
+
+    await expect
+      .poll(() => columnNames(page))
+      .toEqual(["In progress", "Backlog", "Review", "Done", "Later"]);
+  });
 });
 
 test.describe("dragging with the keyboard", () => {

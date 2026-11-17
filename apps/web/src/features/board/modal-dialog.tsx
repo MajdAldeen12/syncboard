@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 
 interface ModalDialogProps {
@@ -35,6 +35,9 @@ export function ModalDialog({
   children,
 }: ModalDialogProps) {
   const dialog = useRef<HTMLDialogElement>(null);
+  // With reduced motion the panel only fades. Without movement in its
+  // starting state, it is not drawn out of place for a frame either.
+  const still = useReducedMotion();
 
   useLayoutEffect(() => {
     const element = dialog.current;
@@ -65,10 +68,11 @@ export function ModalDialog({
       />
       <div className="pointer-events-none absolute inset-0 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
         <motion.div
+          data-modal-panel
           className={`pointer-events-auto relative w-full ${width} rounded-xl bg-white p-4 shadow-2xl ring-1 ring-black/5 dark:bg-zinc-900 dark:ring-white/10`}
-          initial={{ opacity: 0, y: 12, scale: 0.98 }}
+          initial={still ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 8, scale: 0.98 }}
+          exit={still ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }}
           transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
         >
           {children}
