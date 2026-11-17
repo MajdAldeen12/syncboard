@@ -8,6 +8,7 @@ import {
   type PresenceStore,
 } from "@syncboard/core/presence";
 import {
+  AnimatePresence,
   motion,
   useMotionValue,
   useReducedMotion,
@@ -129,27 +130,41 @@ const RemoteCursor = memo(function RemoteCursor({
       style={{ x, y, opacity }}
       className="absolute top-0 left-0"
     >
-      {/* The tip of the arrow is the top-left corner of this element. */}
-      <svg
-        width="12"
-        height="16"
-        viewBox="0 0 12 16"
-        className="block overflow-visible drop-shadow-sm"
+      {/*
+        Where the pointer is lives on the outer element, in motion values.
+        How it appears and leaves lives on this inner one, so that the two
+        never animate the same element.
+      */}
+      <motion.div
+        data-presence-cursor-body
+        className="relative origin-top-left"
+        initial={still ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={still ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
+        transition={{ duration: 0.15, ease: "easeOut" }}
       >
-        <path
-          d="M0 0v12.6l3.5-3.3 2.4 5.6 2.2-.95-2.4-5.5h4.9Z"
-          fill={color}
-          stroke="white"
-          strokeWidth="1"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <span
-        style={{ backgroundColor: color }}
-        className="absolute top-4 left-3 max-w-40 truncate rounded px-1.5 text-[11px]/4 font-medium whitespace-nowrap text-white shadow-sm"
-      >
-        {name}
-      </span>
+        {/* The tip of the arrow is the top-left corner of this element. */}
+        <svg
+          width="12"
+          height="16"
+          viewBox="0 0 12 16"
+          className="block overflow-visible drop-shadow-sm"
+        >
+          <path
+            d="M0 0v12.6l3.5-3.3 2.4 5.6 2.2-.95-2.4-5.5h4.9Z"
+            fill={color}
+            stroke="white"
+            strokeWidth="1"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span
+          style={{ backgroundColor: color }}
+          className="absolute top-4 left-3 max-w-40 truncate rounded px-1.5 text-[11px]/4 font-medium whitespace-nowrap text-white shadow-sm"
+        >
+          {name}
+        </span>
+      </motion.div>
     </motion.div>
   );
 });
@@ -235,20 +250,23 @@ export function CursorOverlay({
       aria-hidden
       className="pointer-events-none absolute inset-0 z-30 overflow-hidden"
     >
-      {others.map(
-        (other) =>
-          other.cursor && (
-            <RemoteCursor
-              key={other.clientId}
-              name={other.user.name}
-              color={other.user.color}
-              cursor={other.cursor}
-              locate={locate}
-              register={register}
-              layout={layout}
-            />
-          ),
-      )}
+      {/* A pointer that leaves fades out where it was last seen. */}
+      <AnimatePresence>
+        {others.map(
+          (other) =>
+            other.cursor && (
+              <RemoteCursor
+                key={other.clientId}
+                name={other.user.name}
+                color={other.user.color}
+                cursor={other.cursor}
+                locate={locate}
+                register={register}
+                layout={layout}
+              />
+            ),
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -72,6 +72,34 @@ test.describe("dragging with the mouse", () => {
       .poll(() => columnNames(page))
       .toEqual(["In progress", "Backlog", "Review", "Done"]);
   });
+
+  test("reorders columns while a field scrolled out of view has focus", async ({
+    page,
+  }) => {
+    // The form stays open after adding, with its field focused, at the far
+    // end of the board. Scrolled back to the start, a drag there used to make
+    // the browser scroll to the field as the drag began.
+    await page.getByRole("button", { name: "Add a column" }).click();
+    await page.getByRole("textbox", { name: "Column title" }).fill("Later");
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("textbox", { name: "Column title" }),
+    ).toBeFocused();
+    await page
+      .locator("[data-board-scroll]")
+      .evaluate((board) => board.scrollTo({ left: 0 }));
+
+    await dragWithMouse(
+      page,
+      page.getByRole("button", { name: "Reorder column Backlog" }),
+      column(page, "In progress"),
+      { x: 60, y: 0 },
+    );
+
+    await expect
+      .poll(() => columnNames(page))
+      .toEqual(["In progress", "Backlog", "Review", "Done", "Later"]);
+  });
 });
 
 test.describe("dragging with the keyboard", () => {
@@ -221,11 +249,49 @@ test.describe("editing", () => {
   });
 
   test("deletes a column after confirmation", async ({ page }) => {
-    page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Delete column Review" }).click();
+    const confirm = page.getByRole("dialog", { name: 'Delete "Review"?' });
+    await expect(confirm).toContainText("the card in it");
+    await confirm.getByRole("button", { name: "Delete column" }).click();
 
+    await expect(confirm).toBeHidden();
     await expect
       .poll(() => columnNames(page))
       .toEqual(["Backlog", "In progress", "Done"]);
+  });
+
+  test("keeps the column when the deletion is cancelled", async ({ page }) => {
+    const remove = page.getByRole("button", { name: "Delete column Backlog" });
+    await remove.click();
+    const confirm = page.getByRole("dialog", { name: 'Delete "Backlog"?' });
+    await expect(confirm).toContainText("the 3 cards in it");
+    // Cancel has focus, so Enter by habit does no harm.
+    await page.keyboard.press("Enter");
+
+    await expect(confirm).toBeHidden();
+    await expect(remove).toBeFocused();
+    expect(await columnNames(page)).toEqual([
+      "Backlog",
+      "In progress",
+      "Review",
+      "Done",
+    ]);
+
+    await remove.click();
+    await expect(confirm).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(confirm).toBeHidden();
+    expect(await columnNames(page)).toContain("Backlog");
+  });
+
+  test("deletes an empty column without asking", async ({ page }) => {
+    await page.getByRole("button", { name: "Add a column" }).click();
+    await page.getByRole("textbox", { name: "Column title" }).fill("Empty");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Delete column Empty" }).click();
+
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect.poll(() => columnNames(page)).not.toContain("Empty");
   });
 });

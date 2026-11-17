@@ -1,5 +1,5 @@
 import type { TextSplice } from "../text-binding/index";
-import { MAX_TITLE_LENGTH } from "./types";
+import { MAX_DESCRIPTION_LENGTH, MAX_TITLE_LENGTH } from "./types";
 
 /** Cuts text to `max` UTF-16 units without splitting a surrogate pair. */
 export function truncate(text: string, max: number): string {
@@ -15,6 +15,26 @@ export function cleanTitle(raw: string): string | null {
   const title = truncate(raw.trim(), MAX_TITLE_LENGTH);
   return title.length > 0 ? title : null;
 }
+
+/** What a text editing session may hold, and what it is kept as. */
+export interface TextRules {
+  /** The longest the text may become while it is typed. */
+  readonly maxLength: number;
+  /** The text to keep when the session ends, or null to take the edit back. */
+  readonly settle: (text: string) => string | null;
+}
+
+/** Titles are trimmed when kept, and may not end up blank. */
+export const TITLE_RULES: TextRules = {
+  maxLength: MAX_TITLE_LENGTH,
+  settle: cleanTitle,
+};
+
+/** Descriptions are kept exactly as typed, empty included. */
+export const DESCRIPTION_RULES: TextRules = {
+  maxLength: MAX_DESCRIPTION_LENGTH,
+  settle: (text) => text,
+};
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(value, max));

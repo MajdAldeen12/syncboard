@@ -54,3 +54,27 @@ export function TrashIcon() {
     </svg>
   );
 }
+
+export function ExpandIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M9.5 3H13v3.5M13 3 8.5 7.5M6.5 13H3V9.5M3 13l4.5-4.5" />
+    </svg>
+  );
+}
+
+/** Shown on a card that has a description. Named for assistive technology. */
+export function DescriptionIcon() {
+  return (
+    <svg
+      {...ICON_PROPS}
+      width={12}
+      height={12}
+      aria-hidden={undefined}
+      role="img"
+      aria-label="Has a description"
+    >
+      <path d="M3 4.5h10M3 8h10M3 11.5h6" />
+    </svg>
+  );
+}

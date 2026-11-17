@@ -456,6 +456,123 @@ export function describeBoardStore(
     });
   });
 
+  describe("editing a description as it is typed", () => {
+    function described(): { store: BoardStore; card: string } {
+      const store = emptyStore();
+      const column = store.addColumn("Todo")!;
+      const card = store.addCard(column, "Fix bug")!;
+      store.updateCard(card, { description: "Seen on login" });
+      return { store, card };
+    }
+
+    const description = (store: BoardStore) =>
+      store.getSnapshot().columns[0]!.cards[0]!.description;
+    const title = (store: BoardStore) =>
+      store.getSnapshot().columns[0]!.cards[0]!.title;
+
+    it("opens on the current description", () => {
+      const { store, card } = described();
+
+      expect(store.editCardDescription(card)!.getText()).toBe("Seen on login");
+    });
+
+    it("cannot be opened on a card that does not exist", () => {
+      const { store } = described();
+
+      expect(store.editCardDescription("missing")).toBeNull();
+    });
+
+    it("shows each edit on the board straight away", () => {
+      const { store, card } = described();
+      const listener = vi.fn();
+      store.subscribe(listener);
+      const session = store.editCardDescription(card)!;
+
+      session.splice(13, 0, " page");
+
+      expect(session.getText()).toBe("Seen on login page");
+      expect(description(store)).toBe("Seen on login page");
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps line breaks and spaces exactly as typed", () => {
+      const { store, card } = described();
+      const session = store.editCardDescription(card)!;
+
+      session.splice(13, 0, "\n\n  Steps:\n  1. Open the app  ");
+      session.commit();
+
+      expect(description(store)).toBe(
+        "Seen on login\n\n  Steps:\n  1. Open the app  ",
+      );
+    });
+
+    it("may be emptied, unlike a title", () => {
+      const { store, card } = described();
+      const session = store.editCardDescription(card)!;
+
+      session.splice(0, 13, "");
+      session.commit();
+
+      expect(description(store)).toBe("");
+    });
+
+    it("takes the edit back when it is cancelled", () => {
+      const { store, card } = described();
+      const session = store.editCardDescription(card)!;
+
+      session.splice(0, 4, "Broken");
+      session.splice(0, 0, "!");
+      session.cancel();
+
+      expect(description(store)).toBe("Seen on login");
+    });
+
+    it("cuts an edit that would make the description too long", () => {
+      const { store, card } = described();
+      const session = store.editCardDescription(card)!;
+
+      session.splice(13, 0, "x".repeat(MAX_DESCRIPTION_LENGTH));
+
+      expect(description(store)).toHaveLength(MAX_DESCRIPTION_LENGTH);
+      expect(description(store).startsWith("Seen on loginxxx")).toBe(true);
+    });
+
+    it("reports changes made elsewhere, but not its own", () => {
+      const { store, card } = described();
+      const session = store.editCardDescription(card)!;
+      const seen: unknown[] = [];
+      session.subscribe((splices) => seen.push(...splices));
+
+      session.splice(0, 0, "A");
+      expect(seen).toEqual([]);
+
+      store.updateCard(card, { description: "ASeen on login!" });
+      expect(seen).toEqual([{ index: 14, remove: 0, insert: "!" }]);
+    });
+
+    it("leaves the title alone", () => {
+      const { store, card } = described();
+      const session = store.editCardDescription(card)!;
+
+      session.splice(0, 13, "");
+      session.splice(0, 0, "New text");
+      session.commit();
+
+      expect(title(store)).toBe("Fix bug");
+    });
+
+    it("ignores edits made after the session has ended", () => {
+      const { store, card } = described();
+      const session = store.editCardDescription(card)!;
+      session.commit();
+      session.splice(0, 0, "late ");
+      session.cancel();
+
+      expect(description(store)).toBe("Seen on login");
+    });
+  });
+
   describe("invariants", () => {
     it("keeps every card in exactly one column through random edits", () => {
       let state = 7;

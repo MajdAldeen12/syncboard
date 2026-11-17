@@ -37,6 +37,29 @@ describe("seedFor", () => {
   });
 });
 
+describe("large test boards", () => {
+  it("start with 200 cards in four columns, when test boards are on", () => {
+    const seed = seedFor("test-large-1", ON);
+    expect(seed).not.toBeNull();
+
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, seed!);
+    const state = readBoardState(doc);
+    const perColumn = Object.keys(state.columns).map(
+      (columnId) =>
+        Object.values(state.cards).filter((card) => card.columnId === columnId)
+          .length,
+    );
+
+    expect(perColumn).toEqual([50, 50, 50, 50]);
+  });
+
+  it("are the same every time, and do not exist when test boards are off", () => {
+    expect(seedFor("test-large-1", ON)).toEqual(seedFor("test-large-2", ON));
+    expect(seedFor("test-large-1", OFF)).toBeNull();
+  });
+});
+
 describe("shouldFailLoad", () => {
   it("fails boards named test-fail-* when test boards are on", () => {
     expect(shouldFailLoad("test-fail-1", ON)).toBe(true);

@@ -11,7 +11,9 @@ import {
 } from "@syncboard/core/board";
 import { rebaseIndex } from "@syncboard/core/ordering";
 import type { ItemRef, PresenceStore } from "@syncboard/core/presence";
+import { AnimatePresence, MotionConfig } from "motion/react";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -26,7 +28,10 @@ import {
 } from "@/features/presence/presence-context";
 import { usePublishCursor } from "@/features/presence/use-publish-cursor";
 import { AddItem } from "./add-item";
-import { Column } from "./column";
+import { CardDialog } from "./card-dialog";
+import { Column, type DeleteRequest } from "./column";
+import { ConfirmDialog } from "./confirm-dialog";
+import { LayoutAnimator } from "./layout-animator";
 
 /** Which cards sit in which column, by id. */
 type CardLayout = Record<string, string[]>;
@@ -52,6 +57,18 @@ function placedAt(ids: readonly string[], id: string, index: number): string[] {
   const placed = ids.filter((other) => other !== id);
   placed.splice(index, 0, id);
   return placed;
+}
+
+/** A card on the board and the name of the column it is shown in. */
+function findCard(
+  board: BoardView,
+  cardId: string,
+): { card: CardView; columnName: string } | null {
+  for (const column of board.columns) {
+    const card = column.cards.find((candidate) => candidate.id === cardId);
+    if (card) return { card, columnName: column.title || "Untitled column" };
+  }
+  return null;
 }
 
 /** Calls `onIdle` once no drag is in progress, including its drop animation. */
@@ -113,6 +130,26 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
   usePublishCursor(presence, scroller, holding);
   const activity = usePresence(presence, (view) => view.activity);
 
+  const animator = useRef<LayoutAnimator>(null);
+
+  // A card opened on its own, and a column waiting for "really delete?".
+  // Each is shown in a dialog over the board. When it closes, focus goes
+  // back to where the person was: `returnFocus` is that element.
+  const [openCardId, setOpenCardId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<DeleteRequest | null>(null);
+  const returnFocus = useRef<string | null>(null);
+  const openCard = useCallback((cardId: string) => {
+    returnFocus.current = `[data-card-id="${CSS.escape(cardId)}"]`;
+    setOpenCardId(cardId);
+  }, []);
+  const confirmDelete = useCallback((request: DeleteRequest) => {
+    returnFocus.current = `[data-column-id="${CSS.escape(request.columnId)}"] [data-delete-column]`;
+    setDeleting(request);
+  }, []);
+  // The open card as it is now. Gone if someone else deleted it, which
+  // closes the dialog.
+  const opened = openCardId ? findCard(live, openCardId) : null;
+
   const cardsById = useMemo(() => {
     const map = new Map<string, CardView>();
     for (const column of board.columns) {
@@ -123,6 +160,21 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
 
   return (
     <DragDropProvider
+      onBeforeDragStart={() => {
+        // dnd-kit measures what it picks up. Nothing may be mid-slide then.
+        animator.current?.finish();
+        // A focused text field elsewhere on the board (the add-a-column form
+        // left open, say) makes the browser scroll back to it as the drag
+        // starts, and the item lands far from where it was dropped. Leaving
+        // the field keeps what was typed in it.
+        const focused = document.activeElement;
+        if (
+          focused instanceof HTMLInputElement ||
+          focused instanceof HTMLTextAreaElement
+        ) {
+          focused.blur();
+        }
+      }}
       onDragStart={(event) => {
         const source = event.operation.source;
         if (source) {
@@ -212,56 +264,115 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
         />
       )}
 
-      <PresenceProvider value={presence}>
-        {/* Positioned, so that the pointers can be laid over the board. */}
-        <div className="relative flex min-h-0 flex-1 flex-col">
-          <div className="flex shrink-0 items-center justify-between gap-4 px-4 pt-4">
-            <h1 className="text-lg font-semibold tracking-tight">
-              {board.title}
-            </h1>
-            {headerEnd}
-          </div>
-
-          <div
-            ref={scroller}
-            data-board-scroll
-            className="flex min-h-0 flex-1 items-start gap-3 overflow-x-auto p-4"
-          >
-            {board.columns.map((column, index) => {
-              const draftIds = drag?.layout[column.id];
-              const cards = draftIds
-                ? draftIds.flatMap((id) => cardsById.get(id) ?? [])
-                : column.cards;
-
-              return (
-                <Column
-                  key={column.id}
-                  column={column}
-                  cards={cards}
-                  index={index}
-                  store={store}
-                  activity={activity}
-                />
-              );
-            })}
-
-            <div className="w-72 shrink-0">
-              <AddItem
-                label="Add a column"
-                placeholder="Column title"
-                maxLength={MAX_TITLE_LENGTH}
-                onAdd={(title) => store.addColumn(title) !== null}
-              />
+      {/*
+        With reduced motion asked for, Motion components inside drop their
+        movement (transforms and layout) and keep fades. Code that calls
+        `animate()` itself has to check on its own.
+      */}
+      <MotionConfig reducedMotion="user">
+        <PresenceProvider value={presence}>
+          {/* Positioned, so that the pointers can be laid over the board. */}
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            <div className="flex shrink-0 items-center justify-between gap-4 px-4 pt-4">
+              <h1 className="text-lg font-semibold tracking-tight">
+                {board.title}
+              </h1>
+              {headerEnd}
             </div>
+
+            <div
+              ref={scroller}
+              data-board-scroll
+              className="flex min-h-0 flex-1 items-start gap-3 overflow-x-auto p-4"
+            >
+              <LayoutAnimator
+                ref={animator}
+                scrollerRef={scroller}
+                // Off while dnd-kit moves things. The render that ends a drag
+                // is animated: changes others made during it slide into place.
+                enabled={!drag && !settling}
+              >
+                {board.columns.map((column, index) => {
+                  const draftIds = drag?.layout[column.id];
+                  const cards = draftIds
+                    ? draftIds.flatMap((id) => cardsById.get(id) ?? [])
+                    : column.cards;
+
+                  return (
+                    <Column
+                      key={column.id}
+                      column={column}
+                      cards={cards}
+                      index={index}
+                      store={store}
+                      activity={activity}
+                      onOpenCard={openCard}
+                      onConfirmDelete={confirmDelete}
+                    />
+                  );
+                })}
+              </LayoutAnimator>
+
+              <div className="w-72 shrink-0">
+                <AddItem
+                  label="Add a column"
+                  placeholder="Column title"
+                  maxLength={MAX_TITLE_LENGTH}
+                  onAdd={(title) => store.addColumn(title) !== null}
+                />
+              </div>
+            </div>
+
+            <CursorOverlay
+              presence={presence}
+              scrollerRef={scroller}
+              layout={drag?.layout ?? board}
+            />
           </div>
 
-          <CursorOverlay
-            presence={presence}
-            scrollerRef={scroller}
-            layout={drag?.layout ?? board}
-          />
-        </div>
-      </PresenceProvider>
+          <AnimatePresence
+            onExitComplete={() => {
+              const selector = returnFocus.current;
+              returnFocus.current = null;
+              // A column that was just deleted cannot take focus back; the
+              // board's first column handle, or "Add a column", does.
+              const target =
+                (selector && document.querySelector<HTMLElement>(selector)) ||
+                scroller.current?.querySelector<HTMLElement>(
+                  "[data-drag-handle], button",
+                );
+              target?.focus();
+            }}
+          >
+            {opened && (
+              <CardDialog
+                key={`card:${opened.card.id}`}
+                store={store}
+                card={opened.card}
+                columnName={opened.columnName}
+                onDismiss={() => setOpenCardId(null)}
+              />
+            )}
+            {deleting && (
+              <ConfirmDialog
+                key={`delete:${deleting.columnId}`}
+                title={`Delete "${deleting.name}"?`}
+                message={
+                  deleting.cardCount === 1
+                    ? "The column and the card in it will be deleted for everyone on this board."
+                    : `The column and the ${deleting.cardCount} cards in it will be deleted for everyone on this board.`
+                }
+                confirmLabel="Delete column"
+                onConfirm={() => {
+                  store.deleteColumn(deleting.columnId);
+                  setDeleting(null);
+                }}
+                onDismiss={() => setDeleting(null)}
+              />
+            )}
+          </AnimatePresence>
+        </PresenceProvider>
+      </MotionConfig>
     </DragDropProvider>
   );
 }
