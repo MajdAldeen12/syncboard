@@ -47,8 +47,10 @@ export function AvatarStack({ presence }: { presence: PresenceStore }) {
           const label = person.isSelf ? `${person.name} (you)` : person.name;
           return (
             <motion.li
-              {...appear}
+              // The key goes before the spread: after it, the JSX compiler
+              // passes the children as an unkeyed list.
               key={person.id}
+              {...appear}
               data-presence-person
               data-self={person.isSelf}
               data-user-name={person.name}
@@ -66,8 +68,8 @@ export function AvatarStack({ presence }: { presence: PresenceStore }) {
 
         {rest.length > 0 && (
           <motion.li
-            {...appear}
             key="more"
+            {...appear}
             title={rest.map((person) => person.name).join(", ")}
             className={`${AVATAR_CLASS} bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100`}
           >

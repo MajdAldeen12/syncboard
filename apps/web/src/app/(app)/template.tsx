@@ -1,21 +1,29 @@
 "use client";
 
 import { MotionConfig, motion, useReducedMotion } from "motion/react";
-import { useState, type ReactNode } from "react";
-import { isAfterFirstLoad } from "@/lib/first-load";
+import { useSyncExternalStore, type ReactNode } from "react";
+
+const subscribeToNothing = () => () => {};
 
 /**
  * Pages of the app rise into place when they are reached from another page,
- * for instance from the home page's "Open the demo board". The first page of
- * a visit is shown as it comes: it may have been sent as finished HTML,
- * which must never start out hidden.
+ * for instance from the home page's "Open the demo board". A page that is
+ * loaded directly is shown as it comes: it was sent as finished HTML, which
+ * must never start out hidden.
  *
  * Only the arrival is animated. The App Router replaces the old page at
  * once, and the home page is GSAP's side of the project, so its exit is not
  * animated with Motion.
  */
 export default function AppTemplate({ children }: { children: ReactNode }) {
-  const [arrived] = useState(isAfterFirstLoad);
+  // While React hydrates the HTML it was sent, it reads the server value:
+  // false. A template mounted later, by navigating, reads true. Only the
+  // value on mount matters, because Motion reads `initial` once.
+  const arrived = useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
   // With reduced motion the page only fades in.
   const still = useReducedMotion();
   const from = still ? { opacity: 0 } : { opacity: 0, y: 8 };

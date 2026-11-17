@@ -112,8 +112,8 @@ async function watchRemoteReorder(
   browser: Browser,
   reducedMotion: "reduce" | "no-preference",
 ): Promise<Track> {
-  // The watcher is the test's own page: on this machine a page in a second
-  // browser context gets no animation frames, so it could not be sampled.
+  // The watcher samples where the card is drawn; the mover, in a browser of
+  // its own, makes the change.
   await watcher.emulateMedia({ reducedMotion });
   const boardId = newBoardId();
   await openBoard(watcher, boardId);

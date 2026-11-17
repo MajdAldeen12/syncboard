@@ -6,14 +6,14 @@ Real-time collaborative kanban web app. Free public tool and portfolio piece: vi
 
 ## Resume here (last updated 2026-11-17)
 
-- **State:** `main` holds milestones 0 to 2, M3 stage 1 and M4 (presence and live cursors). M4 was merged through pull request 4 on 2026-11-16; both CI jobs passed on it, the 17 new browser tests included. No open pull requests.
-- **In flight: M6 (motion polish in the app)**, on branch `m6-motion-polish`, cut from `main` at `8f81330` on 2026-11-16. Work in progress, committed on the branch; see "Next: M6" for what is done. Earlier commits are pushed to GitHub (`origin/m6-motion-polish`); later ones may be local only. No pull request.
-- **Next:** carry on with M6 from "Next: M6" below. That section holds the whole brief, what was found out, the planned approach and the order of work. The first thing still to do is the spike that proves the layout-animation approach. M3 stage 2 (Supabase persistence) and M5 (sign-in, sharing, permissions) cannot start until the owner has a development Supabase project. M7 (the landing page) needs no accounts either.
+- **State:** `main` holds milestones 0 to 2, M3 stage 1 and M4. **M6 (motion polish in the app) is finished on branch `m6-motion-polish`** (2026-11-17): the full gate passes and the browser suite passed four times in a row. Its last commits are local only (the branch on GitHub holds only the planning commits). No pull request.
+- **Next:** push `m6-motion-polish`, open a pull request and merge it, once the owner agrees. After that, M7 (the GSAP landing page) needs no accounts. M3 stage 2 (Supabase persistence) and M5 (sign-in, sharing, permissions) cannot start until the owner has a development Supabase project.
 - **Waiting on the owner:**
   - A development Supabase project, needed for M3 stage 2 and M5.
-  - A look at `/demo` as two people: two different browsers, or one normal and one private window. Two tabs of the same browser are the same guest, so they show one avatar (and each other's pointer). `pnpm dev` starts the sync server too. M2, M3 stage 1 and M4 were verified by automated tests.
+  - Go-ahead to push `m6-motion-polish` and open its pull request.
+  - A look at `/demo` as two people: two different browsers, or one normal and one private window. Two tabs of the same browser are the same guest, so they show one avatar (and each other's pointer). `pnpm dev` starts the sync server too. M2, M3 stage 1, M4 and M6 were verified by automated tests; M6 is about how things move, which tests can only partly judge.
   - OK to delete the merged branches `m1-static-board`, `m2-yjs-board`, `m3-sync-server` and `m4-presence` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
-- **First time on a machine:** `pnpm install`, then `pnpm --filter @syncboard/web exec playwright install chromium`. Run the full gate (see "Working a milestone") to confirm a clean start before changing anything. To continue M6: `git fetch origin`, then `git switch m6-motion-polish`.
+- **First time on a machine:** `pnpm install`, then `pnpm --filter @syncboard/web exec playwright install chromium`. Run the full gate (see "Working a milestone") to confirm a clean start before changing anything. M6 lives on `m6-motion-polish` until it is merged.
 
 ## Product
 
@@ -32,13 +32,14 @@ Multiple people drag cards, edit text and see each other's cursors and presence.
 
 - `apps/web`: Next.js app. `(marketing)` = landing, `(app)` = boards, `src/server` = server-only code
 - `apps/sync`: the sync server, a Cloudflare Worker. `src/index.ts` (routing, `/health`), `src/board-room.ts` (one Durable Object per board), `src/room-load.ts` (what a room starts with), `src/seed.ts` (which boards exist without being created), `src/durable-object-store.ts` (where the document is kept), `src/presence-relay.ts` (who is on the board, kept with each connection so that it survives hibernation)
-- `apps/web/src/features/board`: the board UI, including `sync-indicator.tsx` and `board-placeholder.tsx` (loading and unavailable states)
+- `apps/web/src/features/board`: the board UI, including `sync-indicator.tsx` and `board-placeholder.tsx` (loading and unavailable states), `layout-animator.tsx` (cards and columns slide to new places), `lift-shadow.tsx` (a held item's shadow), `modal-dialog.tsx` (the animated native dialog), `card-dialog.tsx` and `description-field.tsx` (a card opened on its own), `confirm-dialog.tsx` ("Delete this column?")
 - `apps/web/src/features/presence`: `avatar-stack.tsx` (who is here), `cursor-overlay.tsx` (other people's pointers), `use-publish-cursor.ts` (this tab's pointer), `activity-tag.tsx` ("Ana is editing" on a card or column), `presence-context.tsx` (`usePresence`, `useAnnounceEditing`)
-- `apps/web/e2e`: Playwright tests. `board.spec.ts` one tab, `sync.spec.ts` two tabs, `server.spec.ts` two browsers, offline, storage. `presence.spec.ts` two browsers: avatars, pointers, tags, message counts. `helpers.ts` shared, `ports.ts` the test servers' addresses
+- `apps/web/e2e`: Playwright tests. `board.spec.ts` one tab, `sync.spec.ts` two tabs, `server.spec.ts` two browsers, offline, storage. `presence.spec.ts` two browsers: avatars, pointers, tags, message counts. `motion.spec.ts` layout animation, lift, reduced motion (samples frames). `card-dialog.spec.ts` the card dialog. `perf.spec.ts` the 200-card drag measurement, skipped unless `PERF=1`. `helpers.ts` shared, `ports.ts` the test servers' addresses
 - `apps/web/src/lib`: `board-session.ts` (a board's document, saved copy, server connection and status), `sync-config.ts` (server address, test boards), `bind-text-field.ts` (ties a text field to a `TextSession`), `guest-identity.ts` (the made-up name and colour of a browser that has not signed in)
+- `apps/web/src/app/(app)/template.tsx`: the page entrance
 - `packages/core`: pure TS. Exists now: `board` (store interface, in-memory store, seed, `store-contract.ts` = the tests every store must pass), `board-doc` (Yjs schema, mutations, state reader, `normalizeBoard`, Yjs store, `testing.ts` = test helpers), `ordering`, `permissions`, `sync-status` (close codes, what to show about the connection, stalled-handshake detector), `text-binding` (text diff, caret shift, `TextSession` type), `presence` (the shape of one client's presence, `parsePresence`, `readPresence`, cursor geometry, the throttle, `createPresenceStore`, guests). Planned: `ticket`
 - `packages/db`: Drizzle schema, client, queries (M3 stage 2, not created yet)
-- `docs/PLAN.md`: full plan with milestones and "done" checks. `docs/decisions/`: decision records (0001 hibernation, 0002 presence against hibernation, 0003 cursor coordinates)
+- `docs/PLAN.md`: full plan with milestones and "done" checks. `docs/decisions/`: decision records (0001 hibernation, 0002 presence against hibernation, 0003 cursor coordinates, 0004 drag performance on 200 cards)
 
 ## Architecture in brief
 
@@ -74,6 +75,7 @@ Run from the repo root. Requires Node 22.12+ and pnpm 12 (`packageManager` pins 
 - `pnpm e2e`: Playwright browser tests in `apps/web/e2e`. Starts its own sync server on `127.0.0.1:8788` and builds and serves the web app on `127.0.0.1:3100`, so it can run while `pnpm dev` is up. One test at a time, about 3 minutes
 - `pnpm format` / `pnpm format:check`: Prettier
 - One package only: `pnpm --filter @syncboard/core test`
+- The drag performance measurement: `PERF=1 pnpm --filter @syncboard/web exec playwright test e2e/perf.spec.ts`. Writes a Chrome trace to `apps/web/test-results/` (see `docs/decisions/0004-drag-performance.md`)
 
 CI (`.github/workflows/ci.yml`) has two jobs on pushes to `main` and on pull requests: `check` (format, lint, typecheck, unit tests, build) and `e2e` (the browser tests, with traces uploaded on failure).
 
@@ -85,92 +87,6 @@ CI (`.github/workflows/ci.yml`) has two jobs on pushes to `main` and on pull req
 4. Update this file ("Resume here", "Current status", "Open items", "Decisions"), then commit on the branch.
 5. Ask the owner before pushing, opening a pull request or merging. Pull requests are squash-merged with the milestone's commit message: `gh pr merge <n> --squash --subject "<title> (#<n>)" --body-file <file>`.
 6. After the merge: `git switch main`, `git pull --ff-only`, and confirm the CI run on `main` passed.
-
-## Next: M6 (motion polish in the app)
-
-Started 2026-11-16 on `m6-motion-polish`.
-
-**Done so far (2026-11-17):** `editCardDescription` in both stores (plan step 4, 21 new unit tests); the board-level layout animation, `features/board/layout-animator.tsx`, proven by `e2e/motion.spec.ts` (plan steps 1 and 2); lift and set-down feedback, `features/board/lift-shadow.tsx` (step 3); `MotionConfig reducedMotion="user"` around the board; the card detail dialog with a live description (`card-dialog.tsx`, `description-field.tsx`, on the shared `modal-dialog.tsx`, tested in `e2e/card-dialog.spec.ts`) and the column delete confirmation (`confirm-dialog.tsx`), which replaces `window.confirm` (steps 5 and 7); avatar and pointer enter and exit (step 6); the page entrance in `app/(app)/template.tsx` with `lib/first-load.tsx` (step 8); reduced-motion tests in `e2e/motion.spec.ts` (step 9); the column-drag bug, fixed in `onBeforeDragStart` with a test (step 11). **Still to do:** the 200-card trace (step 10), the full gate repeated four times, and the final write-up here. A test that samples frames must wait for frames first: headless Chromium draws none for about 1.5 s after the board opens (see `startTracking` in `e2e/motion.spec.ts`).
-
-Before any change, on that branch, before any change, `pnpm test` passed (354 core + 51 sync) and `pnpm e2e` passed (46 tests, 2.1 minutes). A failure seen later therefore comes from M6 work.
-
-### The brief
-
-Read first: this file in full, above all "Drag and drop: how it works and why" and "Presence: how it works and why" (several entries describe two things moving the same DOM nodes and leaving cards hidden), then the "M6" entry and risk 4 in `docs/PLAN.md`, and the open items tagged M6 below.
-
-What to build:
-
-- Layout animation when cards and columns change order because of someone else's edit, or after a local drop, without fighting dnd-kit while a drag is in progress. The plan's suggestion: the dragged item is handled by dnd-kit, layout animation applies to the others. Prove the chosen approach before building on it.
-- Lift and drop feedback for a dragged card or column.
-- A card detail view opened from a card, with the description edited live. It needs an `editCardDescription` session next to `editCardTitle` in `packages/core` (test-first, in the shared store contract) and a transition for opening and closing the view. Focus moves in, is trapped, and returns to the card.
-- Enter and exit animation for avatars and for other people's pointers.
-- Replace the `window.confirm` used when deleting a column that has cards (undo, or a proper dialog).
-- A page transition between the home page and the board, if it can be done without harming the static prerender.
-- Everything respects `prefers-reduced-motion`: non-essential motion is removed, not just shortened.
-- Stretch, only if the rest is solid: undo and redo of your own changes with `Y.UndoManager`.
-- If it fits naturally, fix the column-drag bug listed first under "Open items", with a test.
-
-Done when:
-
-- A reorder made in another browser animates into place with no jump, shown by a browser test or a recorded measurement.
-- Dragging on a board with 200 cards holds 60 frames a second in a Chrome performance trace. Record the measurement in `docs/decisions/`.
-- With reduced motion requested, the non-essential animations are absent, covered by a browser test.
-- The card detail view works by mouse and by keyboard alone, and two browsers editing one description both keep their words.
-- The full gate passes with the existing 405 unit tests and 46 browser tests still passing. This milestone touches the drag-and-drop elements, so repeat the whole browser suite at least four times before trusting it.
-- This file is updated and the work is committed on `m6-motion-polish`.
-
-Constraints:
-
-- `motion` (import from `motion/react`) only. Check Motion's current documentation before relying on remembered APIs. Animate transforms and opacity, not layout properties.
-- This is polish, not the design pass: colours, type and layout are M8. Keep the current look and make it move well.
-- No persistence or database (M3 stage 2), no sign-in or sharing (M5), no landing page (M7), no deployment.
-- Pin dependency versions that are at least a few days old. Playwright stays on one worker.
-- Do not push, open a pull request or merge without asking the owner first.
-
-### Found out so far
-
-Read from the installed sources and the code. Nothing here has been run or tested yet.
-
-dnd-kit 0.5.3 (`node_modules/.pnpm/@dnd-kit+dom@0.5.3/node_modules/@dnd-kit/dom`: `index.js` holds the Feedback plugin, `sortable.js` the sortable):
-
-- **The held element is moved with the CSS `translate` property, not `transform`.** While held it carries `data-dnd-dragging`, and a stylesheet rule sets `position: fixed`, `translate`, `transition` and `transform: var(--dnd-transform, none)` on it, all `!important`. The variable is filled with the element's computed `transform` at pick-up. So a `transform` that anything else puts on the sortable element during a drag is overridden and does nothing.
-- **The drop** is a Web Animations API animation of `translate` on the held element towards its placeholder. It measures the element with transforms included. Its duration is 0 when the browser asks for reduced motion.
-- **The other cards make room** through `Sortable.animate()`: a 250 ms Web Animations API animation of `translate`, started when a sortable's `index` or `group` changes. It runs only while a drag is in progress, unless `transition: { idle: true }` is passed to `useSortable`. Also 0 ms under reduced motion.
-- The placeholder left in the list is a DOM clone carrying `data-dnd-placeholder`, hidden with `visibility: hidden`.
-- `DragDropProvider` accepts `onBeforeDragStart` (seen in the type definitions; the board does not use it yet).
-
-Motion:
-
-- The Motion docs search tool was not available in that session, so **Motion's API has not yet been checked against current documentation.** Do that first for `layout`, `layoutDependency`, `layoutScroll`, `AnimatePresence` and its modes, `MotionConfig reducedMotion`, `useReducedMotion` and `animate()` on DOM elements. Sources: the `motion` skill and its MCP server, Context7, or motion.dev. The installed code is readable too: `motion` 14.10.1 is `framer-motion` 14.10.1 plus `motion-dom` 14.10.1 under `node_modules/.pnpm`.
-- From the Motion skill's written guidance: `<MotionConfig reducedMotion="user">` turns off transform and layout animations for people who ask for reduced motion and keeps opacity and colour. `AnimatePresence` stays mounted with the condition inside it, and each direct child needs a stable key. `mode="popLayout"` needs a positioned parent. A motion value is never read during render.
-
-In this code:
-
-- Cards sit in a list with `overflow-y-auto` (`column.tsx`). A card moved by a transform is still clipped by that list, so a card sliding in from another column only becomes visible inside the new column's list. Motion's `layout` prop has the same limit.
-- `transform` on the sortable element is dead during a drag (above), so lift feedback has to be drawn on an element inside the card, not on the card element itself.
-- `cardsIn` in `e2e/helpers.ts` reads `innerText`, which leaves out the text of a `visibility: hidden` element and includes any extra text put inside a card. Hide a card with opacity if it must be hidden for a moment, and give an icon an `aria-label` instead of visible or `sr-only` text.
-- Two tests accept the `window.confirm` with `page.once("dialog", …)`: "deletes a column after confirmation" in `board.spec.ts` and "adding, renaming, reordering and deleting columns" in `sync.spec.ts`. Both change with whatever replaces the confirm. The second also presses Escape to dodge the column-drag bug.
-- The home page is under `(marketing)`, where ESLint bans `motion`. A page transition made with Motion can therefore only live on the `(app)` side.
-- For the description session: `MAX_DESCRIPTION_LENGTH` (5000) exists, the view already carries `description`, and `write.cardText(doc, id, "description")` exists. `editText` in `board-doc/store.ts` and `editTitle` in `board/local-store.ts` hard-code the title limit and refuse a blank result on commit. A description needs its own limit, and an empty one is valid.
-- Test boards (`test-*`) start with the demo content, about nine cards. The 200-card check needs a bigger board. `apps/sync/src/seed.ts` decides what a board starts with.
-
-### Planned approach (not proven yet)
-
-A plan, not a record. Change it if the spike says otherwise, and move what survives into "Decisions".
-
-1. **Layout animation: first-last-invert-play at board level, run by Motion's `animate()`**, instead of the `layout` prop on every card. Record where every card and column is just before React changes the DOM (a small class component's `getSnapshotBeforeUpdate`, rendered by `Board`), measure again after, and animate each one that moved from where it was, on `transform`. Never while `drag` or `settling` is set in `board.tsx`, and every running animation is finished in `onBeforeDragStart`, so Motion and dnd-kit never move a card at the same moment. The first render after a drag has settled is animated: that is where changes made by others during the drag appear. Reasons for not using `layout`: each card would have to know that a drag is in progress, which redraws all of them at pick-up; only components that redraw are animated; and a card that changes column is re-created, which needs `layoutId`. If the spike fails, `layout` with `layoutDependency` is the alternative.
-2. **Prove it first** with a two-browser test: one browser reorders, the other samples a card's position every frame. Many in-between positions and no large step means no jump. The same test under `reducedMotion: "reduce"` must see no in-between position.
-3. **Lift and drop feedback on an inner element** of the card and of the column, driven by `isDragging`. For the shadow, fade a second shadow layer with opacity; do not animate `box-shadow`.
-4. **`editCardDescription`**: contract tests first in `board/store-contract.ts`, then both stores, then a two-client merge test in `board-doc/store.test.ts`. Reuse `bindTextField` in the UI.
-5. **Card detail view: a native `<dialog>` opened with `showModal()`, rendered once at board level**, not inside a card's element (dnd-kit listens for keys on the card element; whether a dialog inside it would trigger a drag was not checked, and rendering it outside avoids the question). Opened by a new "Open card" button in the card's row of actions; double-click and the pencil keep editing the title in place. The backdrop and the panel are elements inside the dialog so that Motion can animate them. Return focus to the card explicitly on close. Close the view if someone else deletes the card.
-6. **Avatars**: `AnimatePresence` with `motion.li`. **Pointers**: enter and exit on an inner element, so that position (the outer element, motion values) and appearance never share an element.
-7. **Column delete**: a confirm dialog built on the same dialog. Undo instead only if the stretch goal gets done.
-8. **Page transition**: an entrance in `(app)/template.tsx`, with `initial={false}` on the first load so that the prerendered HTML is never hidden.
-9. **Reduced motion**: movement is removed (layout animation, lift, the dialog's movement, the pointer glide); short opacity fades stay, which is what `MotionConfig reducedMotion="user"` does. Calls to `animate()` must check for themselves. Write the rule into the decision record.
-10. **200 cards**: a test-only seeded board (for instance `test-large-*` in `apps/sync/src/seed.ts`), a trace recorded with Playwright through CDP `Tracing`, written up as `docs/decisions/0004-…`.
-11. **Column-drag bug**: write the failing test first, then blur a focused text field in `onBeforeDragStart`, and remove the Escape workaround from `sync.spec.ts`.
-
-Order: 4 can be done at any time and is independent. 1 and 2 come before 3. 5 and 7 share the dialog. Leave `apps/sync/src` alone while `pnpm e2e` runs.
 
 ## Next: M3 stage 2 (Supabase persistence)
 
@@ -201,6 +117,8 @@ Stage 1 is done (see "Sync server: how it works and why"). The M3 done checks ar
 - `apps/web/e2e` tests must drive drags with stepped pointer moves (`dragWithMouse`). A single jump from press to release never starts a dnd-kit drag, which is also why Claude's browser-pane drag gesture does not work on the board.
 - `wrangler dev` reloads the worker whenever a file under `apps/sync/src` is saved, formatting included, and every room starts again. Leave those files alone while a measurement or `pnpm e2e` is running.
 - Claude's Bash tool on this machine fails on an inline script (heredoc) that contains an apostrophe: `unexpected EOF while looking for matching`. Write the script to a file and run the file.
+- **Headless Chromium draws no frames for about 1.5 s after the board opens** (timers keep running). A test that samples frames with `requestAnimationFrame` must wait until frames arrive before it acts (`startTracking` and `startSampling` in `e2e/motion.spec.ts`), or it sees only the end state.
+- `python3` on this machine is the Microsoft Store stub and hangs waiting for input. Write throwaway scripts in Node.
 - A second look at a failing browser test is cheap: `apps/web/test-results/<test>/error-context.md` holds the page as it was, as an accessibility tree.
 
 ## Drag and drop: how it works and why
@@ -273,11 +191,29 @@ Read this before touching `packages/core/src/presence`, `apps/sync/src/presence-
 - **The tag is real text inside the card**, so that it is read out with the card. Anything that reads a card's text gets it too: `cardsIn` in the test helpers strips it, and three older two-tab tests failed until it did.
 - **In the browser tests,** `silence(page)` followed by closing the context is a tab that dies without saying goodbye. The presence tests passed as soon as the components existed, so each rule was then broken on purpose to see a test fail: no list for a newcomer, no goodbye on close, states sent back, no spring, no anchoring, no throttle, window coordinates, no re-placing on scroll, edits and drags not announced, the guest not kept. Do the same when adding a rule.
 
+## Motion: how it works and why
+
+Read this before touching `layout-animator.tsx`, `lift-shadow.tsx`, `modal-dialog.tsx`, the animations in `features/presence`, or `app/(app)/template.tsx`. The performance measurement is in `docs/decisions/0004-drag-performance.md`.
+
+- **Motion only, imported from `motion/react`.** GSAP is for the landing page and banned in the app; ESLint enforces it.
+- **Reordering slides at board level.** `LayoutAnimator` is a class component around the columns. It measures every card and column in `getSnapshotBeforeUpdate`, again in `componentDidUpdate`, and animates anything that moved from where it was with Motion's `animate()` on `transform` (250 ms). Items are matched by id, so a card that React re-creates in another column still slides across. A card subtracts its column's own slide. Not Motion's `layout` prop: every card would have to know whether a drag is in progress, and a moved card is a new element.
+- **Never while dnd-kit moves things.** `enabled={!drag && !settling}`, and `finish()` in `onBeforeDragStart`, because dnd-kit measures the item it picks up with its transform. The render that ends a drag is animated: that is where changes others made during the drag slide in.
+- **dnd-kit owns the held element's `transform` and `transition`** (`!important`, plus `translate` for the movement). Anything to animate on a held card goes on an element inside it: `LiftShadow` fades a shadow layer's opacity.
+- **A slide is clipped by the card list's `overflow`.** A card coming from another column becomes visible only inside its new column. Accepted.
+- **Dialogs are the browser's own `<dialog>`, opened with `showModal()`** (`ModalDialog`): the page behind is inert, focus stays inside, Escape closes. They are rendered once at board level, never inside a card (dnd-kit listens for keys on cards), inside `AnimatePresence`; removing one plays its exit first. Backdrop and panel are elements inside the dialog because `::backdrop` cannot be animated. Focus goes back in `onExitComplete`, to the card or the delete button recorded in `returnFocus`.
+- **The description is edited live** (`DescriptionField`). Its session opens in `onFocus`, not in an effect, so not even the first keystroke can arrive untied, and is kept on blur. There is no Escape-to-undo: Escape closes the dialog and keeps the text. The title editor inside the dialog prevents Escape's default, so Escape there takes back only the title edit.
+- **Reduced motion: `MotionConfig reducedMotion="user"` is not enough.** Motion skips the animation but still draws the `initial` state for a frame and then snaps. Every component with a transform in `initial` or `exit` therefore uses a fade-only variant when `useReducedMotion()` is true. `LayoutAnimator` checks the media query itself. dnd-kit's own animations already take 0 ms.
+- **Pages rise in only when reached by navigating** (`app/(app)/template.tsx`). A page loaded directly is prerendered HTML and is never hidden: `useSyncExternalStore` reads its server value, false, while React hydrates, and true when the template mounts later. A flag set from an effect in the root layout was tried first and failed: the layout hydrates before the page, so the page was rendered hidden and React reported a hydration mismatch. The home page's exit is not animated: that side belongs to GSAP.
+- **Put `key` before a props spread** (`<motion.li key={id} {...appear}>`). After the spread the JSX compiler passes the children as an unkeyed list and React warns.
+- **Pointers**: position on the outer element (motion values), appearance on the inner `data-presence-cursor-body`. **Avatars**: `motion.li` in `AnimatePresence mode="popLayout"`, with `layout` only without reduced motion.
+- **Starting a drag blurs a focused text field** elsewhere on the board. Otherwise the browser scrolls back to it as the drag begins and the item lands several places off (the old column-drag bug, now tested).
+- **Testing motion:** sample in the page under test, every frame, after frames have started (see Environment notes). The new tests passed first time, so each rule was broken on purpose to see a test fail: animation always off, reduced motion ignored, focus not handed back, the dialog opened without `showModal`. The column-drag test failed three times out of three before its fix. Do the same when adding a rule.
+
 ## Current status
 
-- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project. M6 was started on 2026-11-16 on branch `m6-motion-polish`, also ahead of M3 stage 2; so far it is planning only.
+- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project. M6 was done on branch `m6-motion-polish` (2026-11-16 and 17), also ahead of M3 stage 2; not merged yet.
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
-- The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. The board also shows who else is on it, their pointers, and who is editing or moving which card; everyone is a guest with a made-up name. Nothing is deployed, and there is no database yet.
+- The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. The board also shows who else is on it, their pointers, and who is editing or moving which card; everyone is a guest with a made-up name. Cards can be opened on their own to edit a description. Nothing is deployed, and there is no database yet.
 - [x] M0 Foundations (repo, CI, tooling)
 - [x] M1 Static board with drag and drop: mouse, touch and keyboard drag for cards and columns, inline editing, add and delete. 58 unit tests, 13 Playwright tests.
 - [x] M2 State in Yjs, two tabs in sync: Yjs document model and store, live title editing with `Y.Text`, BroadcastChannel provider, board frozen during a drag. 238 unit tests (convergence included), 22 Playwright tests (13 from M1, 9 with two tabs).
@@ -286,14 +222,13 @@ Read this before touching `packages/core/src/presence`, `apps/sync/src/presence-
   - [ ] Stage 2: `packages/db`, Supabase-backed snapshot store, Postgres-from-Worker spike.
 - [x] M4 Presence and cursors: avatar stack, live pointers smoothed with a spring, "is editing" and "is moving this" tags, guest names, presence kept across hibernation, pointer traffic limited to 15 messages a second. 354 core and 51 sync unit tests, 46 Playwright tests (the 29 earlier ones, 17 new with two or three browsers). The whole browser suite passed four times in a row (184 runs, 2026-11-16).
 - [ ] M5 Auth, sharing, permissions, demo board
-- [ ] M6 Motion polish in the app: in progress on `m6-motion-polish` (see "Next: M6")
+- [x] M6 Motion polish in the app (on `m6-motion-polish`, not merged): cards and columns slide into new places, lift and set-down shadows, a card dialog with a live description, a confirm dialog for deleting a column, avatar and pointer entrances, a page entrance, reduced motion throughout, the column-drag bug fixed. 375 core and 53 sync unit tests, 65 Playwright tests (the 46 earlier ones, 19 new) plus the skipped measurement. 60 frames a second dragging on 200 cards.
 - [ ] M7 GSAP landing page
 - [ ] M8 Design pass, accessibility, performance
 - [ ] M9 Demo GIF, README, deploy
 
 ## Open items
 
-- Bug, older than M2: start dragging a column while a text field that is scrolled out of view has focus (easiest: add a column, leave the add form open, scroll back, drag the first column). The browser scrolls the board back to the focused field as the drag starts, so the column lands several places off. Measured: `scrollLeft` 0 to 540 at pick-up, only when a field is focused; no script calls `focus` or `scrollIntoView`. Likely fix: blur the focused field when a drag begins, or close the add form on blur. `sync.spec.ts` presses Escape to avoid it; remove that when fixed and add a test.
 - CI: the `e2e` job passes on GitHub's Linux runners with one worker (first run was pull request 3). Still to try: more than one worker there (`workers` in `apps/web/playwright.config.ts`); the stall that forces one worker may be specific to the Windows machine.
 - M3 stage 2: the M3 done check "restarting the sync server restores the board from Supabase" is open. Stage 1 covers the equivalent for Durable Object storage: a room that everyone left is dropped from memory and serves what was saved.
 - M5: `DOC_GENERATION` is a constant 1 in `board-session.ts`. Resetting the demo board needs the server to tell the browser the current generation, and the browser to drop a saved copy of an older one.
@@ -307,7 +242,11 @@ Read this before touching `packages/core/src/presence`, `apps/sync/src/presence-
 - M5: add a test that a read-only (viewer) connection's presence is relayed. The room never asks `isReadOnly` for presence, but there is no viewer to test with yet.
 - M5: the server does not limit how often a connection sends presence; the 15 a second is the browser's own restraint. Add a per-connection rate limit with the other demo caps.
 - M5 or M9, when the sync server is first deployed: repeat the scenarios of `docs/decisions/0002` on Cloudflare, in particular how quickly a client that vanishes without closing (network lost, lid shut) is reported. Until its close is reported that person stays on screen, because nothing times out.
-- M6: avatars and pointers appear and disappear without animation. A pointer outside the visible part of the board is simply not visible; consider a marker at the edge.
+- M8: a pointer outside the visible part of the board is simply not visible; consider a marker at the edge.
+- M8 performance: on a 200-card board, picking a card up takes one 29 to 49 ms task and each column the card crosses into about 22 ms, so a frame is dropped at those moments (`docs/decisions/0004`). Both predate M6. Measured only on a fast laptop; repeat with CPU throttling.
+- Undo and redo of one's own changes (`Y.UndoManager`) was the M6 stretch goal and is not done.
+- A card is opened only from its "Open card" button: Enter and Space on a card pick it up. Consider a key for opening.
+- The layout animation measures every card on every board render, remote keystrokes included. Cheap at 200 cards; watch it on bigger boards.
 - M8: people joining and leaving is not announced to screen readers (the avatar list is labelled, the pointers are hidden from assistive technology). Decide whether a polite live region is wanted. More than five people collapse into "+N".
 - M8: touch devices report no pointer. Two people editing one card show "Ana and 1 more"; check the wording.
 - `y-partyserver` upgrade: `board-session.ts` relies on the provider's `_awarenessUpdateHandler`, and `BoardRoom` bypasses the server's awareness handling. Re-run `presence.spec.ts` and re-read both when the version changes. Worth reporting upstream: awareness states are lost on wake-up, and the provider echoes received states.
@@ -317,10 +256,8 @@ Read this before touching `packages/core/src/presence`, `apps/sync/src/presence-
 - M8: text typed by someone else that arrives while an input method is composing (Chinese, Japanese, Korean keyboards) replaces the field's value and may interrupt the composition. Hold remote edits until `compositionend`.
 - M8: a card or column whose title is empty (possible for a moment while someone retypes it, or after two overlapping deletions) is shown and announced as "Untitled". Check the wording and contrast.
 - Cards whose column was deleted are hidden if the board has no column at all, and reappear in the first column that is added. Rare; decide whether to delete them instead.
-- M6: card description has no UI yet (the field exists in the model and is a `Y.Text`). Planned with the card detail view; it needs an `editCardDescription` session next to `editCardTitle`.
 - M8: drag announcements read out raw ids ("seed-column-1-card-1"); configure dnd-kit's Accessibility plugin to use card and column titles.
 - M8: cards are a `role="group"` in a plain container, not list items. Review with a screen reader.
-- Deleting a column with cards uses `window.confirm`. Replace with undo or a proper dialog (M6).
 - ESLint 9 is marked deprecated on npm; it is what create-next-app 16.4.6 installs. Move to ESLint 10 when `eslint-config-next` is confirmed to work with it.
 - Free-tier Supabase pauses after about a week of low activity: keep-alive cron + README note (M9)
 - Hosting accounts (Cloudflare, Supabase, Vercel) and domain not yet confirmed
@@ -362,4 +299,10 @@ Read this before touching `packages/core/src/presence`, `apps/sync/src/presence-
 - Guests (M4): a name such as "Quiet Otter" and one of ten colours, made up in the browser and kept in `localStorage` under `syncboard:guest`. Every palette colour carries white text at 4.5:1 or better; a test checks it.
 - A card someone else is holding shows "… is moving this" (M4), with the same tag as "… is editing". Column titles get the editing tag too.
 - `motion` is pinned to 14.10.1 (M4) and so far used only for the spring that smooths pointers. Avatar and pointer enter and exit animation is left to M6.
+- Layout animation (M6): one first-last-invert-play pass at board level with Motion's `animate()`, instead of Motion's `layout` prop on every card. Proven with a two-browser test that samples a card every frame.
+- The card detail view (M6) is a native modal `<dialog>` at board level, opened from an "Open card" button. Double-click and the pencil still edit the title in place.
+- Descriptions (M6) are kept exactly as typed and may be empty; titles are trimmed and may not be blank. Both are `Y.Text` edited live. `BoardStore.editCardDescription` returns a `TextSession`; the rules live in `TITLE_RULES` and `DESCRIPTION_RULES` in `packages/core/src/board/text.ts`.
+- Deleting a column that has cards asks in a dialog, with Cancel focused (M6). An empty column is deleted at once. Undo was the alternative and is not built.
+- Reduced motion (M6) removes movement and keeps short fades, including in Motion components' start and end states.
+- `apps/sync` seeds `test-large-*` boards with 200 cards when test boards are on (M6), for the performance measurement.
 - `apps/sync` depends on `lib0` directly (M4) for reading and writing awareness messages; `y-protocols` is a test-only dependency of `apps/sync` and `packages/core`, so the tests run against the real protocol.

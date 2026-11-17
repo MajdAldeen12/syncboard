@@ -1,5 +1,11 @@
-import { createSeedBoard } from "@syncboard/core/board";
+import {
+  createSeedBoard,
+  type BoardState,
+  type CardRecord,
+  type ColumnRecord,
+} from "@syncboard/core/board";
 import { encodeBoardState } from "@syncboard/core/board-doc";
+import { initialOrders } from "@syncboard/core/ordering";
 
 /** The one board that exists without being created by anyone. */
 export const DEMO_BOARD_ID = "demo";
@@ -29,7 +35,37 @@ export function seedFor(
   const isTestBoard = options.allowTestBoards && boardId.startsWith("test-");
   if (boardId !== DEMO_BOARD_ID && !isTestBoard) return null;
 
+  if (isTestBoard && boardId.startsWith("test-large-")) {
+    return encodeBoardState(largeBoard());
+  }
   return encodeBoardState(createSeedBoard());
+}
+
+/**
+ * Four columns of 50 cards, for measuring how the board copes with many
+ * cards. Test boards named `test-large-*` start with it.
+ */
+function largeBoard(): BoardState {
+  const columns: Record<string, ColumnRecord> = {};
+  const cards: Record<string, CardRecord> = {};
+  const titles = ["Backlog", "In progress", "Review", "Done"];
+  const columnOrders = initialOrders(titles.length);
+  const cardOrders = initialOrders(50);
+
+  titles.forEach((title, columnIndex) => {
+    const columnId = `large-column-${columnIndex + 1}`;
+    columns[columnId] = { title, order: columnOrders[columnIndex]! };
+    cardOrders.forEach((order, cardIndex) => {
+      cards[`${columnId}-card-${cardIndex + 1}`] = {
+        columnId,
+        order,
+        title: `${title} task ${cardIndex + 1}`,
+        description: "",
+      };
+    });
+  });
+
+  return { title: "Large board", columns, cards };
 }
 
 /**
