@@ -6,14 +6,13 @@ Real-time collaborative kanban web app. Free public tool and portfolio piece: vi
 
 ## Resume here (last updated 2026-11-17)
 
-- **State:** `main` holds milestones 0 to 2, M3 stage 1 and M4. **M6 (motion polish in the app) is finished on branch `m6-motion-polish`** (2026-11-17): the full gate passes and the browser suite passed four times in a row. It is pushed and open as pull request 5 against `main`. If you are reading this on `main`, that pull request has been merged.
-- **Next:** merge pull request 5 once CI passes and the owner agrees. After that, M7 (the GSAP landing page) needs no accounts. M3 stage 2 (Supabase persistence) and M5 (sign-in, sharing, permissions) cannot start until the owner has a development Supabase project.
+- **State:** `main` holds milestones 0 to 2, M3 stage 1, M4 and M6 (motion polish in the app). M6 was merged through pull request 5 on 2026-11-17; both CI jobs passed on it, the 19 new browser tests included. No open pull requests, no work in flight.
+- **Next:** M7 (the GSAP landing page) needs no accounts and can start now. M3 stage 2 (Supabase persistence) and M5 (sign-in, sharing, permissions) cannot start until the owner has a development Supabase project.
 - **Waiting on the owner:**
   - A development Supabase project, needed for M3 stage 2 and M5.
-  - Go-ahead to merge pull request 5.
   - A look at `/demo` as two people: two different browsers, or one normal and one private window. Two tabs of the same browser are the same guest, so they show one avatar (and each other's pointer). `pnpm dev` starts the sync server too. M2, M3 stage 1, M4 and M6 were verified by automated tests; M6 is about how things move, which tests can only partly judge.
-  - OK to delete the merged branches `m1-static-board`, `m2-yjs-board`, `m3-sync-server` and `m4-presence` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
-- **First time on a machine:** `pnpm install`, then `pnpm --filter @syncboard/web exec playwright install chromium`. Run the full gate (see "Working a milestone") to confirm a clean start before changing anything. M6 lives on `m6-motion-polish` until it is merged.
+  - OK to delete the merged branches `m1-static-board`, `m2-yjs-board`, `m3-sync-server`, `m4-presence` and `m6-motion-polish` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
+- **First time on a machine:** `pnpm install`, then `pnpm --filter @syncboard/web exec playwright install chromium`. Run the full gate (see "Working a milestone") to confirm a clean start before changing anything.
 
 ## Product
 
@@ -211,7 +210,7 @@ Read this before touching `layout-animator.tsx`, `lift-shadow.tsx`, `modal-dialo
 
 ## Current status
 
-- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project. M6 was done on branch `m6-motion-polish` (2026-11-16 and 17), also ahead of M3 stage 2, and is open as pull request 5.
+- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project. M6 was done on branch `m6-motion-polish` (2026-11-16 and 17), also ahead of M3 stage 2, and merged through pull request 5 (2026-11-17).
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
 - The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. The board also shows who else is on it, their pointers, and who is editing or moving which card; everyone is a guest with a made-up name. Cards can be opened on their own to edit a description. Nothing is deployed, and there is no database yet.
 - [x] M0 Foundations (repo, CI, tooling)
