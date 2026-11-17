@@ -6,11 +6,11 @@ Real-time collaborative kanban web app. Free public tool and portfolio piece: vi
 
 ## Resume here (last updated 2026-11-17)
 
-- **State:** `main` holds milestones 0 to 2, M3 stage 1 and M4. **M6 (motion polish in the app) is finished on branch `m6-motion-polish`** (2026-11-17): the full gate passes and the browser suite passed four times in a row. Its last commits are local only (the branch on GitHub holds only the planning commits). No pull request.
-- **Next:** push `m6-motion-polish`, open a pull request and merge it, once the owner agrees. After that, M7 (the GSAP landing page) needs no accounts. M3 stage 2 (Supabase persistence) and M5 (sign-in, sharing, permissions) cannot start until the owner has a development Supabase project.
+- **State:** `main` holds milestones 0 to 2, M3 stage 1 and M4. **M6 (motion polish in the app) is finished on branch `m6-motion-polish`** (2026-11-17): the full gate passes and the browser suite passed four times in a row. It is pushed and open as pull request 5 against `main`. If you are reading this on `main`, that pull request has been merged.
+- **Next:** merge pull request 5 once CI passes and the owner agrees. After that, M7 (the GSAP landing page) needs no accounts. M3 stage 2 (Supabase persistence) and M5 (sign-in, sharing, permissions) cannot start until the owner has a development Supabase project.
 - **Waiting on the owner:**
   - A development Supabase project, needed for M3 stage 2 and M5.
-  - Go-ahead to push `m6-motion-polish` and open its pull request.
+  - Go-ahead to merge pull request 5.
   - A look at `/demo` as two people: two different browsers, or one normal and one private window. Two tabs of the same browser are the same guest, so they show one avatar (and each other's pointer). `pnpm dev` starts the sync server too. M2, M3 stage 1, M4 and M6 were verified by automated tests; M6 is about how things move, which tests can only partly judge.
   - OK to delete the merged branches `m1-static-board`, `m2-yjs-board`, `m3-sync-server` and `m4-presence` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
 - **First time on a machine:** `pnpm install`, then `pnpm --filter @syncboard/web exec playwright install chromium`. Run the full gate (see "Working a milestone") to confirm a clean start before changing anything. M6 lives on `m6-motion-polish` until it is merged.
@@ -211,7 +211,7 @@ Read this before touching `layout-animator.tsx`, `lift-shadow.tsx`, `modal-dialo
 
 ## Current status
 
-- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project. M6 was done on branch `m6-motion-polish` (2026-11-16 and 17), also ahead of M3 stage 2; not merged yet.
+- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project. M6 was done on branch `m6-motion-polish` (2026-11-16 and 17), also ahead of M3 stage 2, and is open as pull request 5.
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
 - The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. The board also shows who else is on it, their pointers, and who is editing or moving which card; everyone is a guest with a made-up name. Cards can be opened on their own to edit a description. Nothing is deployed, and there is no database yet.
 - [x] M0 Foundations (repo, CI, tooling)
@@ -222,7 +222,7 @@ Read this before touching `layout-animator.tsx`, `lift-shadow.tsx`, `modal-dialo
   - [ ] Stage 2: `packages/db`, Supabase-backed snapshot store, Postgres-from-Worker spike.
 - [x] M4 Presence and cursors: avatar stack, live pointers smoothed with a spring, "is editing" and "is moving this" tags, guest names, presence kept across hibernation, pointer traffic limited to 15 messages a second. 354 core and 51 sync unit tests, 46 Playwright tests (the 29 earlier ones, 17 new with two or three browsers). The whole browser suite passed four times in a row (184 runs, 2026-11-16).
 - [ ] M5 Auth, sharing, permissions, demo board
-- [x] M6 Motion polish in the app (on `m6-motion-polish`, not merged): cards and columns slide into new places, lift and set-down shadows, a card dialog with a live description, a confirm dialog for deleting a column, avatar and pointer entrances, a page entrance, reduced motion throughout, the column-drag bug fixed. 375 core and 53 sync unit tests, 65 Playwright tests (the 46 earlier ones, 19 new) plus the skipped measurement. 60 frames a second dragging on 200 cards.
+- [x] M6 Motion polish in the app (pull request 5): cards and columns slide into new places, lift and set-down shadows, a card dialog with a live description, a confirm dialog for deleting a column, avatar and pointer entrances, a page entrance, reduced motion throughout, the column-drag bug fixed. 375 core and 53 sync unit tests, 65 Playwright tests (the 46 earlier ones, 19 new) plus the skipped measurement. 60 frames a second dragging on 200 cards.
 - [ ] M7 GSAP landing page
 - [ ] M8 Design pass, accessibility, performance
 - [ ] M9 Demo GIF, README, deploy
