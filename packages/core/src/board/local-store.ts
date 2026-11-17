@@ -8,10 +8,16 @@ import {
 } from "../text-binding/index";
 import { cardPlacement, columnPlacement } from "./placement";
 import { selectBoard } from "./select";
-import { cleanTitle, fitSplice, truncate } from "./text";
+import {
+  DESCRIPTION_RULES,
+  TITLE_RULES,
+  cleanTitle,
+  fitSplice,
+  truncate,
+  type TextRules,
+} from "./text";
 import {
   MAX_DESCRIPTION_LENGTH,
-  MAX_TITLE_LENGTH,
   type BoardState,
   type BoardStore,
   type BoardView,
@@ -76,22 +82,28 @@ export function createLocalBoardStore(
     });
   }
 
-  function setCardTitle(cardId: string, title: string): void {
+  function setCardText(
+    cardId: string,
+    field: "title" | "description",
+    text: string,
+  ): void {
     const current = card(cardId);
-    if (!current || title === current.title) return;
+    if (!current || text === current[field]) return;
     commit({
       ...state,
-      cards: { ...state.cards, [cardId]: { ...current, title } },
+      cards: { ...state.cards, [cardId]: { ...current, [field]: text } },
     });
   }
 
   /**
-   * A session over one title. Nobody else can be typing here, so taking an
-   * edit back simply restores the title the session opened on.
+   * A session over one title or description. Nobody else can be typing
+   * here, so taking an edit back simply restores the text the session
+   * opened on.
    */
-  function editTitle(
+  function editText(
     read: () => string | undefined,
-    write: (title: string) => void,
+    write: (text: string) => void,
+    rules: TextRules,
   ): TextSession | null {
     const opened = read();
     if (opened === undefined) return null;
@@ -122,13 +134,7 @@ export function createLocalBoardStore(
       splice(index, remove, insert) {
         const current = read();
         if (ended || current === undefined) return;
-        const edit = fitSplice(
-          current,
-          index,
-          remove,
-          insert,
-          MAX_TITLE_LENGTH,
-        );
+        const edit = fitSplice(current, index, remove, insert, rules.maxLength);
         if (!edit) return;
         seen = applySplice(current, edit);
         write(seen);
@@ -146,7 +152,7 @@ export function createLocalBoardStore(
         if (ended) return;
         end();
         const current = read();
-        if (current !== undefined) write(cleanTitle(current) ?? opened);
+        if (current !== undefined) write(rules.settle(current) ?? opened);
       },
 
       cancel() {
@@ -180,9 +186,10 @@ export function createLocalBoardStore(
     },
 
     editColumnTitle(columnId) {
-      return editTitle(
+      return editText(
         () => column(columnId)?.title,
         (title) => setColumnTitle(columnId, title),
+        TITLE_RULES,
       );
     },
 
@@ -247,9 +254,18 @@ export function createLocalBoardStore(
     },
 
     editCardTitle(cardId) {
-      return editTitle(
+      return editText(
         () => card(cardId)?.title,
-        (title) => setCardTitle(cardId, title),
+        (title) => setCardText(cardId, "title", title),
+        TITLE_RULES,
+      );
+    },
+
+    editCardDescription(cardId) {
+      return editText(
+        () => card(cardId)?.description,
+        (description) => setCardText(cardId, "description", description),
+        DESCRIPTION_RULES,
       );
     },
 

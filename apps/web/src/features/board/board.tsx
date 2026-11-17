@@ -11,6 +11,7 @@ import {
 } from "@syncboard/core/board";
 import { rebaseIndex } from "@syncboard/core/ordering";
 import type { ItemRef, PresenceStore } from "@syncboard/core/presence";
+import { MotionConfig } from "motion/react";
 import {
   useEffect,
   useMemo,
@@ -27,6 +28,7 @@ import {
 import { usePublishCursor } from "@/features/presence/use-publish-cursor";
 import { AddItem } from "./add-item";
 import { Column } from "./column";
+import { LayoutAnimator } from "./layout-animator";
 
 /** Which cards sit in which column, by id. */
 type CardLayout = Record<string, string[]>;
@@ -113,6 +115,8 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
   usePublishCursor(presence, scroller, holding);
   const activity = usePresence(presence, (view) => view.activity);
 
+  const animator = useRef<LayoutAnimator>(null);
+
   const cardsById = useMemo(() => {
     const map = new Map<string, CardView>();
     for (const column of board.columns) {
@@ -123,6 +127,10 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
 
   return (
     <DragDropProvider
+      onBeforeDragStart={() => {
+        // dnd-kit measures what it picks up. Nothing may be mid-slide then.
+        animator.current?.finish();
+      }}
       onDragStart={(event) => {
         const source = event.operation.source;
         if (source) {
@@ -212,56 +220,71 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
         />
       )}
 
-      <PresenceProvider value={presence}>
-        {/* Positioned, so that the pointers can be laid over the board. */}
-        <div className="relative flex min-h-0 flex-1 flex-col">
-          <div className="flex shrink-0 items-center justify-between gap-4 px-4 pt-4">
-            <h1 className="text-lg font-semibold tracking-tight">
-              {board.title}
-            </h1>
-            {headerEnd}
-          </div>
-
-          <div
-            ref={scroller}
-            data-board-scroll
-            className="flex min-h-0 flex-1 items-start gap-3 overflow-x-auto p-4"
-          >
-            {board.columns.map((column, index) => {
-              const draftIds = drag?.layout[column.id];
-              const cards = draftIds
-                ? draftIds.flatMap((id) => cardsById.get(id) ?? [])
-                : column.cards;
-
-              return (
-                <Column
-                  key={column.id}
-                  column={column}
-                  cards={cards}
-                  index={index}
-                  store={store}
-                  activity={activity}
-                />
-              );
-            })}
-
-            <div className="w-72 shrink-0">
-              <AddItem
-                label="Add a column"
-                placeholder="Column title"
-                maxLength={MAX_TITLE_LENGTH}
-                onAdd={(title) => store.addColumn(title) !== null}
-              />
+      {/*
+        With reduced motion asked for, Motion components inside drop their
+        movement (transforms and layout) and keep fades. Code that calls
+        `animate()` itself has to check on its own.
+      */}
+      <MotionConfig reducedMotion="user">
+        <PresenceProvider value={presence}>
+          {/* Positioned, so that the pointers can be laid over the board. */}
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            <div className="flex shrink-0 items-center justify-between gap-4 px-4 pt-4">
+              <h1 className="text-lg font-semibold tracking-tight">
+                {board.title}
+              </h1>
+              {headerEnd}
             </div>
-          </div>
 
-          <CursorOverlay
-            presence={presence}
-            scrollerRef={scroller}
-            layout={drag?.layout ?? board}
-          />
-        </div>
-      </PresenceProvider>
+            <div
+              ref={scroller}
+              data-board-scroll
+              className="flex min-h-0 flex-1 items-start gap-3 overflow-x-auto p-4"
+            >
+              <LayoutAnimator
+                ref={animator}
+                scrollerRef={scroller}
+                // Off while dnd-kit moves things. The render that ends a drag
+                // is animated: changes others made during it slide into place.
+                enabled={!drag && !settling}
+              >
+                {board.columns.map((column, index) => {
+                  const draftIds = drag?.layout[column.id];
+                  const cards = draftIds
+                    ? draftIds.flatMap((id) => cardsById.get(id) ?? [])
+                    : column.cards;
+
+                  return (
+                    <Column
+                      key={column.id}
+                      column={column}
+                      cards={cards}
+                      index={index}
+                      store={store}
+                      activity={activity}
+                    />
+                  );
+                })}
+              </LayoutAnimator>
+
+              <div className="w-72 shrink-0">
+                <AddItem
+                  label="Add a column"
+                  placeholder="Column title"
+                  maxLength={MAX_TITLE_LENGTH}
+                  onAdd={(title) => store.addColumn(title) !== null}
+                />
+              </div>
+            </div>
+
+            <CursorOverlay
+              presence={presence}
+              scrollerRef={scroller}
+              layout={drag?.layout ?? board}
+            />
+          </div>
+        </PresenceProvider>
+      </MotionConfig>
     </DragDropProvider>
   );
 }

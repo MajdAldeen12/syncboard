@@ -87,6 +87,12 @@ export interface BoardStore {
   updateCard(cardId: string, patch: CardPatch): void;
   /** Starts editing a card's title. Null if the card does not exist. */
   editCardTitle(cardId: string): TextSession | null;
+  /**
+   * Starts editing a card's description, the same way as a title, except
+   * that it is kept exactly as typed and may be left empty. Null if the card
+   * does not exist.
+   */
+  editCardDescription(cardId: string): TextSession | null;
   deleteCard(cardId: string): void;
   /** Moves a card so that it ends up at `toIndex` in `toColumnId`. */
   moveCard(cardId: string, toColumnId: string, toIndex: number): void;

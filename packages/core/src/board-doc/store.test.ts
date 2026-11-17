@@ -224,6 +224,39 @@ describe("editing a title that someone else is editing too", () => {
     expect(titleOf(bob.store, "c")).toBe("Fix the bug now");
   });
 
+  it("merges what both typed in a description, and cancel takes back only one", () => {
+    const [alice, bob] = twoClients();
+    alice.store.updateCard("c", { description: "Seen on login" });
+    sync(alice, bob);
+    const hers = alice.store.editCardDescription("c")!;
+    const his = bob.store.editCardDescription("c")!;
+
+    hers.splice(0, 0, "Often "); // Often Seen on login
+    his.splice(13, 0, " page"); // Seen on login page
+    sync(alice, bob);
+    hers.commit();
+    his.commit();
+    sync(alice, bob);
+
+    const descriptionOf = (client: Client) =>
+      client.store
+        .getSnapshot()
+        .columns.flatMap((column) => column.cards)
+        .find((card) => card.id === "c")?.description;
+    expect(descriptionOf(alice)).toBe("Often Seen on login page");
+    expect(descriptionOf(bob)).toBe("Often Seen on login page");
+
+    const again = alice.store.editCardDescription("c")!;
+    again.splice(0, 6, "");
+    bob.store.editCardDescription("c")!.splice(24, 0, "!");
+    sync(alice, bob);
+    again.cancel();
+    sync(alice, bob);
+
+    expect(descriptionOf(alice)).toBe("Often Seen on login page!");
+    expect(descriptionOf(bob)).toBe("Often Seen on login page!");
+  });
+
   it("ends quietly when the card is deleted in the meantime", () => {
     const [alice, bob] = twoClients();
     const hers = alice.store.editCardTitle("c")!;

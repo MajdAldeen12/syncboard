@@ -14,6 +14,7 @@ import { AddItem } from "./add-item";
 import { Card } from "./card";
 import { GripIcon, TrashIcon } from "./icons";
 import { InlineText } from "./inline-text";
+import { LiftShadow } from "./lift-shadow";
 
 interface ColumnProps {
   column: ColumnView;
@@ -57,10 +58,12 @@ export function Column({ column, cards, index, store, activity }: ColumnProps) {
       data-column-id={column.id}
       aria-label={name}
       style={outline.style}
-      className={`relative flex max-h-full w-72 shrink-0 flex-col rounded-xl bg-zinc-100 dark:bg-zinc-900 ${
-        isDragging ? "opacity-80 shadow-lg" : ""
-      } ${outline.className}`}
+      className={`relative flex max-h-full w-72 shrink-0 flex-col rounded-xl bg-zinc-100 dark:bg-zinc-900 ${outline.className}`}
     >
+      <LiftShadow
+        lifted={isDragging}
+        className="rounded-xl shadow-2xl ring-2 ring-blue-500/25"
+      />
       <ActivityTag activity={others} item="column" />
 
       <header className="flex items-center gap-1 p-2 pb-0.5">

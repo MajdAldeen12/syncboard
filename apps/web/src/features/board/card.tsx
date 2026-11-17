@@ -11,6 +11,7 @@ import { memo, useState } from "react";
 import { ActivityTag, activityOutline } from "@/features/presence/activity-tag";
 import { CloseIcon, PencilIcon } from "./icons";
 import { TextEditor, useFocusAfterEdit } from "./inline-text";
+import { LiftShadow } from "./lift-shadow";
 
 interface CardProps {
   card: CardView;
@@ -66,10 +67,12 @@ export const Card = memo(function Card({
       style={outline.style}
       className={`group/card relative shrink-0 rounded-lg bg-white px-2 py-1.5 text-sm shadow-sm outline-offset-1 focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-zinc-800 ${
         outline.className || "ring-1 ring-black/5 dark:ring-white/10"
-      } ${editing ? "" : "cursor-grab select-none active:cursor-grabbing"} ${
-        isDragging ? "shadow-lg ring-blue-500/40" : ""
-      }`}
+      } ${editing ? "" : "cursor-grab select-none active:cursor-grabbing"}`}
     >
+      <LiftShadow
+        lifted={isDragging}
+        className="rounded-lg shadow-xl ring-2 ring-blue-500/30"
+      />
       <ActivityTag activity={activity} item="card" />
 
       {editing ? (

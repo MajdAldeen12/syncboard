@@ -2,12 +2,15 @@ import { nanoid } from "nanoid";
 import * as Y from "yjs";
 import { cardPlacement, columnPlacement } from "../board/placement";
 import { selectBoard } from "../board/select";
-import { cleanTitle, fitSplice, truncate } from "../board/text";
 import {
-  MAX_DESCRIPTION_LENGTH,
-  MAX_TITLE_LENGTH,
-  type BoardStore,
-} from "../board/types";
+  DESCRIPTION_RULES,
+  TITLE_RULES,
+  cleanTitle,
+  fitSplice,
+  truncate,
+  type TextRules,
+} from "../board/text";
+import { MAX_DESCRIPTION_LENGTH, type BoardStore } from "../board/types";
 import { orderAtIndex } from "../ordering/index";
 import type { TextSession, TextSplice } from "../text-binding/index";
 import * as write from "./mutations";
@@ -75,7 +78,10 @@ export function createYjsBoardStore(
    * of its own, which lets an undo manager take back exactly this session's
    * edits and nobody else's.
    */
-  function editText(find: () => Y.Text | null): TextSession | null {
+  function editText(
+    find: () => Y.Text | null,
+    rules: TextRules,
+  ): TextSession | null {
     const found = find();
     if (!found) return null;
     const text: Y.Text = found;
@@ -121,7 +127,7 @@ export function createYjsBoardStore(
           index,
           remove,
           insert,
-          MAX_TITLE_LENGTH,
+          rules.maxLength,
         );
         if (!edit) return;
 
@@ -143,9 +149,9 @@ export function createYjsBoardStore(
         if (ended) return;
         end();
         if (exists()) {
-          const title = cleanTitle(text.toString());
-          if (title === null) takeBack();
-          else write.writeText(text, title);
+          const kept = rules.settle(text.toString());
+          if (kept === null) takeBack();
+          else write.writeText(text, kept);
         }
         release();
       },
@@ -186,7 +192,7 @@ export function createYjsBoardStore(
     },
 
     editColumnTitle(columnId) {
-      return editText(() => write.columnText(doc, columnId));
+      return editText(() => write.columnText(doc, columnId), TITLE_RULES);
     },
 
     deleteColumn(columnId) {
@@ -243,7 +249,14 @@ export function createYjsBoardStore(
     },
 
     editCardTitle(cardId) {
-      return editText(() => write.cardText(doc, cardId, "title"));
+      return editText(() => write.cardText(doc, cardId, "title"), TITLE_RULES);
+    },
+
+    editCardDescription(cardId) {
+      return editText(
+        () => write.cardText(doc, cardId, "description"),
+        DESCRIPTION_RULES,
+      );
     },
 
     deleteCard(cardId) {

@@ -7,7 +7,7 @@ Real-time collaborative kanban web app. Free public tool and portfolio piece: vi
 ## Resume here (last updated 2026-11-17)
 
 - **State:** `main` holds milestones 0 to 2, M3 stage 1 and M4 (presence and live cursors). M4 was merged through pull request 4 on 2026-11-16; both CI jobs passed on it, the 17 new browser tests included. No open pull requests.
-- **In flight: M6 (motion polish in the app)**, on branch `m6-motion-polish`, cut from `main` at `8f81330` on 2026-11-16. The branch holds reading and planning only: no application code or test has been changed, and its commits touch only this file. It is pushed to GitHub (`origin/m6-motion-polish`); no pull request.
+- **In flight: M6 (motion polish in the app)**, on branch `m6-motion-polish`, cut from `main` at `8f81330` on 2026-11-16. Work in progress, committed on the branch; see "Next: M6" for what is done. Earlier commits are pushed to GitHub (`origin/m6-motion-polish`); later ones may be local only. No pull request.
 - **Next:** carry on with M6 from "Next: M6" below. That section holds the whole brief, what was found out, the planned approach and the order of work. The first thing still to do is the spike that proves the layout-animation approach. M3 stage 2 (Supabase persistence) and M5 (sign-in, sharing, permissions) cannot start until the owner has a development Supabase project. M7 (the landing page) needs no accounts either.
 - **Waiting on the owner:**
   - A development Supabase project, needed for M3 stage 2 and M5.
@@ -88,7 +88,11 @@ CI (`.github/workflows/ci.yml`) has two jobs on pushes to `main` and on pull req
 
 ## Next: M6 (motion polish in the app)
 
-Started 2026-11-16 on `m6-motion-polish`. **Nothing is built yet.** On that branch, before any change, `pnpm test` passed (354 core + 51 sync) and `pnpm e2e` passed (46 tests, 2.1 minutes). A failure seen later therefore comes from M6 work.
+Started 2026-11-16 on `m6-motion-polish`.
+
+**Done so far (2026-11-17):** `editCardDescription` in both stores (plan step 4, 21 new unit tests); the board-level layout animation, `features/board/layout-animator.tsx`, proven by `e2e/motion.spec.ts` (plan steps 1 and 2); lift and set-down feedback, `features/board/lift-shadow.tsx` (step 3); `MotionConfig reducedMotion="user"` around the board. **Still to do:** steps 5 to 11. A test that samples frames must wait for frames first: headless Chromium draws none for about 1.5 s after the board opens (see `startTracking` in `e2e/motion.spec.ts`).
+
+Before any change, on that branch, before any change, `pnpm test` passed (354 core + 51 sync) and `pnpm e2e` passed (46 tests, 2.1 minutes). A failure seen later therefore comes from M6 work.
 
 ### The brief
 
@@ -282,7 +286,7 @@ Read this before touching `packages/core/src/presence`, `apps/sync/src/presence-
   - [ ] Stage 2: `packages/db`, Supabase-backed snapshot store, Postgres-from-Worker spike.
 - [x] M4 Presence and cursors: avatar stack, live pointers smoothed with a spring, "is editing" and "is moving this" tags, guest names, presence kept across hibernation, pointer traffic limited to 15 messages a second. 354 core and 51 sync unit tests, 46 Playwright tests (the 29 earlier ones, 17 new with two or three browsers). The whole browser suite passed four times in a row (184 runs, 2026-11-16).
 - [ ] M5 Auth, sharing, permissions, demo board
-- [ ] M6 Motion polish in the app: started on `m6-motion-polish`, nothing built yet (see "Next: M6")
+- [ ] M6 Motion polish in the app: in progress on `m6-motion-polish` (see "Next: M6")
 - [ ] M7 GSAP landing page
 - [ ] M8 Design pass, accessibility, performance
 - [ ] M9 Demo GIF, README, deploy
