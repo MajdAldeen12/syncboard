@@ -24,9 +24,28 @@ interface ColumnProps {
   store: BoardStore;
   /** Who else is editing or moving each card and column, by `itemKey`. */
   activity: ReadonlyMap<string, readonly Activity[]>;
+  /** Opens a card on its own. */
+  onOpenCard: (cardId: string) => void;
+  /** Asks before deleting a column that still has cards in it. */
+  onConfirmDelete: (request: DeleteRequest) => void;
 }
 
-export function Column({ column, cards, index, store, activity }: ColumnProps) {
+/** A column someone wants to delete, with what would go with it. */
+export interface DeleteRequest {
+  readonly columnId: string;
+  readonly name: string;
+  readonly cardCount: number;
+}
+
+export function Column({
+  column,
+  cards,
+  index,
+  store,
+  activity,
+  onOpenCard,
+  onConfirmDelete,
+}: ColumnProps) {
   const { ref, handleRef, isDragging } = useSortable({
     id: column.id,
     index,
@@ -44,12 +63,9 @@ export function Column({ column, cards, index, store, activity }: ColumnProps) {
   const outline = activityOutline(others);
 
   function deleteColumn() {
-    const count = cards.length;
-    const warning =
-      count === 1
-        ? `Delete "${name}" and the card in it?`
-        : `Delete "${name}" and the ${count} cards in it?`;
-    if (count === 0 || window.confirm(warning)) store.deleteColumn(column.id);
+    if (cards.length === 0) store.deleteColumn(column.id);
+    else
+      onConfirmDelete({ columnId: column.id, name, cardCount: cards.length });
   }
 
   return (
@@ -94,6 +110,7 @@ export function Column({ column, cards, index, store, activity }: ColumnProps) {
 
         <button
           type="button"
+          data-delete-column
           aria-label={`Delete column ${name}`}
           onClick={deleteColumn}
           className="flex size-7 shrink-0 items-center justify-center rounded text-zinc-400 outline-offset-1 hover:bg-zinc-200 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-blue-600 dark:hover:bg-zinc-800"
@@ -117,6 +134,7 @@ export function Column({ column, cards, index, store, activity }: ColumnProps) {
             columnId={column.id}
             store={store}
             activity={activity.get(itemKey({ kind: "card", id: card.id }))}
+            onOpen={onOpenCard}
           />
         ))}
       </div>

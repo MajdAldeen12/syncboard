@@ -9,7 +9,7 @@ import {
 import type { Activity } from "@syncboard/core/presence";
 import { memo, useState } from "react";
 import { ActivityTag, activityOutline } from "@/features/presence/activity-tag";
-import { CloseIcon, PencilIcon } from "./icons";
+import { CloseIcon, DescriptionIcon, ExpandIcon, PencilIcon } from "./icons";
 import { TextEditor, useFocusAfterEdit } from "./inline-text";
 import { LiftShadow } from "./lift-shadow";
 
@@ -21,6 +21,8 @@ interface CardProps {
   store: BoardStore;
   /** Who else is editing or moving this card. The same list until it changes. */
   activity?: readonly Activity[];
+  /** Opens the card on its own, with its description. */
+  onOpen: (cardId: string) => void;
 }
 
 const ACTION_CLASS =
@@ -32,6 +34,7 @@ export const Card = memo(function Card({
   columnId,
   store,
   activity,
+  onOpen,
 }: CardProps) {
   const [editing, setEditing] = useState(false);
   // A title can be empty for a moment while someone else is retyping it.
@@ -93,8 +96,21 @@ export const Card = memo(function Card({
           <p className="px-1 py-0.5 wrap-break-word">
             {card.title || <span className="text-zinc-400">Untitled</span>}
           </p>
+          {card.description && (
+            <span className="block px-1 pb-0.5 text-zinc-400">
+              <DescriptionIcon />
+            </span>
+          )}
 
           <div className="absolute top-1 right-1 flex gap-0.5 rounded-md bg-white opacity-0 shadow-sm ring-1 ring-black/5 group-hover/card:opacity-100 focus-within:opacity-100 dark:bg-zinc-800 dark:ring-white/10">
+            <button
+              type="button"
+              aria-label={`Open card: ${name}`}
+              onClick={() => onOpen(card.id)}
+              className={`${ACTION_CLASS} hover:text-zinc-900 dark:hover:text-zinc-100`}
+            >
+              <ExpandIcon />
+            </button>
             <button
               ref={editButtonRef}
               type="button"

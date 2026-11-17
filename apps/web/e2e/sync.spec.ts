@@ -146,8 +146,11 @@ test.describe("two tabs mirror each other", () => {
       .poll(() => columnNames(other))
       .toEqual(["In progress", "Backlog", "Checks", "Done", "Later"]);
 
-    other.once("dialog", (dialog) => dialog.accept());
     await other.getByRole("button", { name: "Delete column Done" }).click();
+    await other
+      .getByRole("dialog", { name: 'Delete "Done"?' })
+      .getByRole("button", { name: "Delete column" })
+      .click();
     await expect
       .poll(() => columnNames(page))
       .toEqual(["In progress", "Backlog", "Checks", "Later"]);

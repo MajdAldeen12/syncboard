@@ -90,7 +90,7 @@ CI (`.github/workflows/ci.yml`) has two jobs on pushes to `main` and on pull req
 
 Started 2026-11-16 on `m6-motion-polish`.
 
-**Done so far (2026-11-17):** `editCardDescription` in both stores (plan step 4, 21 new unit tests); the board-level layout animation, `features/board/layout-animator.tsx`, proven by `e2e/motion.spec.ts` (plan steps 1 and 2); lift and set-down feedback, `features/board/lift-shadow.tsx` (step 3); `MotionConfig reducedMotion="user"` around the board. **Still to do:** steps 5 to 11. A test that samples frames must wait for frames first: headless Chromium draws none for about 1.5 s after the board opens (see `startTracking` in `e2e/motion.spec.ts`).
+**Done so far (2026-11-17):** `editCardDescription` in both stores (plan step 4, 21 new unit tests); the board-level layout animation, `features/board/layout-animator.tsx`, proven by `e2e/motion.spec.ts` (plan steps 1 and 2); lift and set-down feedback, `features/board/lift-shadow.tsx` (step 3); `MotionConfig reducedMotion="user"` around the board; the card detail dialog with a live description (`card-dialog.tsx`, `description-field.tsx`, on the shared `modal-dialog.tsx`, tested in `e2e/card-dialog.spec.ts`) and the column delete confirmation (`confirm-dialog.tsx`), which replaces `window.confirm` (steps 5 and 7). **Still to do:** steps 6 and 8 to 11. A test that samples frames must wait for frames first: headless Chromium draws none for about 1.5 s after the board opens (see `startTracking` in `e2e/motion.spec.ts`).
 
 Before any change, on that branch, before any change, `pnpm test` passed (354 core + 51 sync) and `pnpm e2e` passed (46 tests, 2.1 minutes). A failure seen later therefore comes from M6 work.
 
