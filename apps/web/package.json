@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint && node scripts/check-animation-boundary.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "e2e": "node e2e/clean-state.mjs && playwright test"
   },
@@ -14,7 +14,9 @@
     "@dnd-kit/abstract": "^0.5.3",
     "@dnd-kit/helpers": "^0.5.3",
     "@dnd-kit/react": "^0.5.3",
+    "@gsap/react": "2.1.2",
     "@syncboard/core": "workspace:*",
+    "gsap": "3.15.1",
     "motion": "14.10.1",
     "next": "16.4.6",
     "react": "19.3.0",
