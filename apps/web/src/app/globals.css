@@ -10,6 +10,8 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Headlines on the landing page; defined only where that page sets it. */
+  --font-display: var(--font-schibsted), var(--font-geist-sans);
 }
 
 @media (prefers-color-scheme: dark) {

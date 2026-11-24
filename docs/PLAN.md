@@ -262,6 +262,7 @@ Done (2026-11-17), without the stretch goal. The layout animation runs once at b
 
 **M7. GSAP landing page.** Hero timeline and scroll-driven sections with `useGSAP` (scoped, cleaned up) and `gsap.matchMedia`. The hero uses a GSAP-animated illustration, not the real board component, so the two libraries never touch the same element.
 Done when: the lint rule proves no `motion` import under `(marketing)` or `features/landing` and no `gsap` import elsewhere; mobile Lighthouse performance is 90 or higher; no layout shift from pinned sections; reduced motion renders static.
+Done (2026-11-24). The lint rule is itself checked by `apps/web/scripts/check-animation-boundary.mjs`, and a browser test checks that GSAP never runs on the board. Nothing is pinned: the tour's picture is CSS sticky, so there is no pin spacer to shift the layout. Mobile Lighthouse performance 97 to 99 and no layout shift, in `docs/decisions/0005-landing-page.md`.
 
 **M8. Design pass, accessibility, performance.** Impeccable critique and polish, focus management, drag announcements for screen readers, AA contrast, axe checks in Playwright, bundle check (GSAP only in the landing chunk, Yjs only in the app chunk).
 Done when: axe reports no serious or critical issues; a keyboard-only walkthrough (create, move across columns, edit, share) succeeds; Lighthouse accessibility is 95 or higher; a 500-card board stays responsive.

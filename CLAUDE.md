@@ -4,11 +4,13 @@ Real-time collaborative kanban web app. Free public tool and portfolio piece: vi
 
 **Keep this file current.** Update "Resume here" and "Current status" at the end of every working session and whenever a milestone or decision changes. Work may continue from a different Claude account, so anything not written here or in `docs/` is lost.
 
-## Resume here (last updated 2026-11-17)
+## Resume here (last updated 2026-11-24)
 
-- **State:** `main` holds milestones 0 to 2, M3 stage 1, M4 and M6 (motion polish in the app). M6 was merged through pull request 5 on 2026-11-17; both CI jobs passed on it, the 19 new browser tests included. No open pull requests, no work in flight.
-- **Next:** M7 (the GSAP landing page) needs no accounts and can start now. M3 stage 2 (Supabase persistence) and M5 (sign-in, sharing, permissions) cannot start until the owner has a development Supabase project.
+- **State:** `main` holds milestones 0 to 2, M3 stage 1, M4 and M6. M7 (the GSAP landing page) is finished and committed on branch `m7-landing-page`, not pushed: the full gate passed locally on 2026-11-24 (428 unit tests, 71 browser tests). No pull request yet.
+- **Next:** push `m7-landing-page` and open its pull request once the owner agrees, then merge it as the earlier milestones were. After that, M8 (design pass, accessibility, performance) needs no accounts. M3 stage 2 (Supabase persistence) and M5 (sign-in, sharing, permissions) cannot start until the owner has a development Supabase project.
 - **Waiting on the owner:**
+  - OK to push `m7-landing-page` and open its pull request.
+  - A look at `/` (the landing page) in a real browser, phone and desktop: the motion is judged by eye, which tests can only partly do.
   - A development Supabase project, needed for M3 stage 2 and M5.
   - A look at `/demo` as two people: two different browsers, or one normal and one private window. Two tabs of the same browser are the same guest, so they show one avatar (and each other's pointer). `pnpm dev` starts the sync server too. M2, M3 stage 1, M4 and M6 were verified by automated tests; M6 is about how things move, which tests can only partly judge.
   - OK to delete the merged branches `m1-static-board`, `m2-yjs-board`, `m3-sync-server`, `m4-presence` and `m6-motion-polish` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
@@ -33,12 +35,15 @@ Multiple people drag cards, edit text and see each other's cursors and presence.
 - `apps/sync`: the sync server, a Cloudflare Worker. `src/index.ts` (routing, `/health`), `src/board-room.ts` (one Durable Object per board), `src/room-load.ts` (what a room starts with), `src/seed.ts` (which boards exist without being created), `src/durable-object-store.ts` (where the document is kept), `src/presence-relay.ts` (who is on the board, kept with each connection so that it survives hibernation)
 - `apps/web/src/features/board`: the board UI, including `sync-indicator.tsx` and `board-placeholder.tsx` (loading and unavailable states), `layout-animator.tsx` (cards and columns slide to new places), `lift-shadow.tsx` (a held item's shadow), `modal-dialog.tsx` (the animated native dialog), `card-dialog.tsx` and `description-field.tsx` (a card opened on its own), `confirm-dialog.tsx` ("Delete this column?")
 - `apps/web/src/features/presence`: `avatar-stack.tsx` (who is here), `cursor-overlay.tsx` (other people's pointers), `use-publish-cursor.ts` (this tab's pointer), `activity-tag.tsx` ("Ana is editing" on a card or column), `presence-context.tsx` (`usePresence`, `useAnnounceEditing`)
-- `apps/web/e2e`: Playwright tests. `board.spec.ts` one tab, `sync.spec.ts` two tabs, `server.spec.ts` two browsers, offline, storage. `presence.spec.ts` two browsers: avatars, pointers, tags, message counts. `motion.spec.ts` layout animation, lift, reduced motion (samples frames). `card-dialog.spec.ts` the card dialog. `perf.spec.ts` the 200-card drag measurement, skipped unless `PERF=1`. `helpers.ts` shared, `ports.ts` the test servers' addresses
+- `apps/web/e2e`: Playwright tests. `board.spec.ts` one tab, `sync.spec.ts` two tabs, `server.spec.ts` two browsers, offline, storage. `presence.spec.ts` two browsers: avatars, pointers, tags, message counts. `motion.spec.ts` layout animation, lift, reduced motion (samples frames). `card-dialog.spec.ts` the card dialog. `landing.spec.ts` the landing page: without JavaScript, the demo link, GSAP kept off the board, animation, reduced motion, layout shift. `perf.spec.ts` the 200-card drag measurement, skipped unless `PERF=1`. `helpers.ts` shared, `ports.ts` the test servers' addresses
 - `apps/web/src/lib`: `board-session.ts` (a board's document, saved copy, server connection and status), `sync-config.ts` (server address, test boards), `bind-text-field.ts` (ties a text field to a `TextSession`), `guest-identity.ts` (the made-up name and colour of a browser that has not signed in)
 - `apps/web/src/app/(app)/template.tsx`: the page entrance
+- `apps/web/src/app/(marketing)/page.tsx`: the landing page (hero, feature tour, "How it is built", footer)
+- `apps/web/src/features/landing`: `gsap.ts` (registers the plugins once, `MEDIA` conditions; import GSAP from here), `sketch.tsx` (SVG drawing pieces: window, card, tag, pointer, avatar, status), `hero-sketch.tsx` (two people's screens, the hero timeline), `feature-tour.tsx` (sticky picture and the scrubbed tour timeline), `tour-step.tsx` (one step's text), `fonts.ts` (the display font, Schibsted Grotesk, landing page only)
+- `apps/web/scripts/check-animation-boundary.mjs`: run by `pnpm lint`; fails if the ESLint rule keeping Motion and GSAP apart stops rejecting or allowing what it should
 - `packages/core`: pure TS. Exists now: `board` (store interface, in-memory store, seed, `store-contract.ts` = the tests every store must pass), `board-doc` (Yjs schema, mutations, state reader, `normalizeBoard`, Yjs store, `testing.ts` = test helpers), `ordering`, `permissions`, `sync-status` (close codes, what to show about the connection, stalled-handshake detector), `text-binding` (text diff, caret shift, `TextSession` type), `presence` (the shape of one client's presence, `parsePresence`, `readPresence`, cursor geometry, the throttle, `createPresenceStore`, guests). Planned: `ticket`
 - `packages/db`: Drizzle schema, client, queries (M3 stage 2, not created yet)
-- `docs/PLAN.md`: full plan with milestones and "done" checks. `docs/decisions/`: decision records (0001 hibernation, 0002 presence against hibernation, 0003 cursor coordinates, 0004 drag performance on 200 cards)
+- `docs/PLAN.md`: full plan with milestones and "done" checks. `docs/decisions/`: decision records (0001 hibernation, 0002 presence against hibernation, 0003 cursor coordinates, 0004 drag performance on 200 cards, 0005 the landing page's animation and Lighthouse score)
 
 ## Architecture in brief
 
@@ -52,7 +57,8 @@ Multiple people drag cards, edit text and see each other's cursors and presence.
 
 ## Rules
 
-- Motion and GSAP never animate the same element. `motion` is banned under `(marketing)` and `features/landing`; `gsap` is banned everywhere else. ESLint enforces this.
+- Motion and GSAP never animate the same element. `motion` is banned under `(marketing)` and `features/landing`; `gsap` is banned everywhere else. ESLint enforces this, `scripts/check-animation-boundary.mjs` checks the rule itself, and `e2e/landing.spec.ts` checks that GSAP never runs on the board. Board code must not import from `features/landing` either: the ESLint rule cannot see that, the browser test can.
+- The landing page claims only what is built. No sign-in, sharing, database or deployment claims, no invented numbers or testimonials.
 - Permission checks run on the server, never only in the client. Every server action and route handler calls `requireBoardAccess` first. Drizzle bypasses RLS, so roles are enforced in `packages/core/permissions`.
 - RLS is enabled on every table with no policies, to block the public Data API key.
 - Yjs and permission logic stay in small `packages/core` modules with Vitest tests. No React, Next or Workers imports there.
@@ -68,13 +74,14 @@ Run from the repo root. Requires Node 22.12+ and pnpm 12 (`packageManager` pins 
 
 - `pnpm dev`: run the web app (port 3000) and the sync server (`127.0.0.1:8787`) together. The board needs both.
 - `pnpm build`: production build of the web app
-- `pnpm lint`: ESLint in every package
+- `pnpm lint`: ESLint in every package, plus the Motion and GSAP boundary check in web
 - `pnpm typecheck`: `next typegen` + `tsc` in web, `wrangler types` + `tsc` in sync, `tsc` in core
 - `pnpm test`: Vitest in every package that has tests (core and sync)
 - `pnpm e2e`: Playwright browser tests in `apps/web/e2e`. Starts its own sync server on `127.0.0.1:8788` and builds and serves the web app on `127.0.0.1:3100`, so it can run while `pnpm dev` is up. One test at a time, about 3 minutes
 - `pnpm format` / `pnpm format:check`: Prettier
 - One package only: `pnpm --filter @syncboard/core test`
 - The drag performance measurement: `PERF=1 pnpm --filter @syncboard/web exec playwright test e2e/perf.spec.ts`. Writes a Chrome trace to `apps/web/test-results/` (see `docs/decisions/0004-drag-performance.md`)
+- The landing page's Lighthouse score: `pnpm build`, start the `web-prod` preview (`next start` on port 3200), then `npx --yes lighthouse@13.6.0 http://localhost:3200/ --only-categories=performance` with `CHROME_PATH` set to Playwright's Chromium (`node -e "console.log(require('@playwright/test').chromium.executablePath())"` in `apps/web`). Mobile is Lighthouse's default. The Chrome DevTools MCP's `lighthouse_audit` leaves performance out. See `docs/decisions/0005-landing-page.md`
 
 CI (`.github/workflows/ci.yml`) has two jobs on pushes to `main` and on pull requests: `check` (format, lint, typecheck, unit tests, build) and `e2e` (the browser tests, with traces uploaded on failure).
 
@@ -119,6 +126,8 @@ Stage 1 is done (see "Sync server: how it works and why"). The M3 done checks ar
 - **Headless Chromium draws no frames for about 1.5 s after the board opens** (timers keep running). A test that samples frames with `requestAnimationFrame` must wait until frames arrive before it acts (`startTracking` and `startSampling` in `e2e/motion.spec.ts`), or it sees only the end state.
 - `python3` on this machine is the Microsoft Store stub and hangs waiting for input. Write throwaway scripts in Node.
 - A second look at a failing browser test is cheap: `apps/web/test-results/<test>/error-context.md` holds the page as it was, as an accessibility tree.
+- A throwaway Playwright script outside the repo loads Playwright with `createRequire("E:/SyncBoard/apps/web/package.json")`; a plain `import` cannot find it from the scratchpad.
+- A rule appended to the end of `apps/web/src/app/globals.css` (an attribute selector, `[data-sketch="a-c2"] { opacity: 0 }`) reached neither the dev server's nor the production build's CSS (2026-11-24); a Tailwind class in the markup did. Cause not found. If a CSS change seems to do nothing, search the built CSS in `.next*/static/chunks/*.css` first.
 
 ## Drag and drop: how it works and why
 
@@ -208,11 +217,28 @@ Read this before touching `layout-animator.tsx`, `lift-shadow.tsx`, `modal-dialo
 - **Starting a drag blurs a focused text field** elsewhere on the board. Otherwise the browser scrolls back to it as the drag begins and the item lands several places off (the old column-drag bug, now tested).
 - **Testing motion:** sample in the page under test, every frame, after frames have started (see Environment notes). The new tests passed first time, so each rule was broken on purpose to see a test fail: animation always off, reduced motion ignored, focus not handed back, the dialog opened without `showModal`. The column-drag test failed three times out of three before its fix. Do the same when adding a rule.
 
+## Landing page: how it works and why
+
+Read this before touching `apps/web/src/app/(marketing)` or `apps/web/src/features/landing`. The measurements are in `docs/decisions/0005-landing-page.md`.
+
+- **GSAP only, imported from `features/landing/gsap.ts`.** It registers `useGSAP` and `ScrollTrigger` once and exports `MEDIA` (`motion` = no reduced-motion preference, `wide` = 768 px and up). GSAP 3.15.1 and `@gsap/react` 2.1.2 are pinned in `apps/web/package.json`.
+- **The pictures are SVG drawings, not the real board.** `sketch.tsx` draws a window, cards, tags, pointers, avatars and the status in one fixed coordinate system (`WINDOW` 400 by 200, `PITCH`, `slot()`), so a picture scales with its box and a timeline moves things by fixed amounts at any width. Guest names and colours are copied from `packages/core/src/presence/guest.ts`, not imported, so the landing bundle carries no board code.
+- **Everything GSAP moves is an inner group marked `data-sketch="<id>"`** inside an outer group that places it. GSAP's `x` and `y` are offsets from where the HTML draws it. Ids start with `a-` and `b-` (the hero's front and back screens) or `t-` (the tour); the tests rely on that.
+- **The HTML is a complete picture, always.** The hero's markup is the board before anyone moves and the timeline starts from it; the tour's markup is the end of the tour and its timeline `gsap.set`s the starting state when it is created, while still below the fold. Never hide anything with CSS or a class waiting for GSAP: the page must read fully without JavaScript, before GSAP loads, and with reduced motion. The largest paint is the introduction text.
+- **Timelines only inside `gsap.matchMedia()`, under `MEDIA.motion`.** With reduced motion nothing is created, the tour's starting state included, so it shows the finished picture. `useGSAP({ scope: root })` scopes the selectors and reverts on unmount.
+- **The tour's picture is `position: sticky`, not pinned.** ScrollTrigger's `pin` adds a spacer when it is created and moves what follows. ScrollTrigger only scrubs one timeline (`scrub: 0.6`) across `[data-tour-steps]`, from `top` to `bottom` of the steps at a reading line (60% of the window wide, 72% narrow, where the picture sits on top). Each step owns one unit of the timeline and plays its scene in the first half. `ScrollTrigger.refresh()` runs after `document.fonts.ready`, because the display font changes the steps' heights.
+- **On a phone the tour's picture sticks at the top** with the page background behind it, and the steps scroll under it. On a wide screen it sits to the right, vertically centred.
+- **The hero plays once,** 0.6 s after load: Quiet Otter moves a card on the front screen and Brisk Heron's screen behind shows the pointer, the "is moving this" tag and the slide, 0.12 s later (`LAG`); then the other way round. It does not loop.
+- **Keep the link named "Open the demo board"**: `e2e/motion.spec.ts` and `e2e/landing.spec.ts` use it.
+- **GSAP on the board is caught at run time.** GSAP pushes its version onto `window.gsapVersions` as soon as it loads. `landing.spec.ts` checks that it is there on `/` and absent on a freshly loaded board. That also catches board code importing anything from `features/landing`, which the ESLint rule cannot see.
+- **Testing:** the tests passed first time, so the rules were broken on purpose: board code importing `features/landing/gsap` (the GSAP test failed), the tour ignoring reduced motion (the reduced-motion test failed), picture parts hidden with `opacity-0` (the no-JavaScript test failed), and the ESLint rule weakened three ways (the boundary script failed). Do the same when adding a rule.
+- **Licence:** GSAP is under the GSAP Standard ("No Charge") License, free on any website, commercial included, with no attribution required. It is installed from npm, never copied into the repo; the README says the MIT licence covers SyncBoard's own code only.
+
 ## Current status
 
-- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project. M6 was done on branch `m6-motion-polish` (2026-11-16 and 17), also ahead of M3 stage 2, and merged through pull request 5 (2026-11-17).
+- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project. M6 was done on branch `m6-motion-polish` (2026-11-16 and 17), also ahead of M3 stage 2, and merged through pull request 5 (2026-11-17). M7 was done on branch `m7-landing-page` (2026-11-17 to 24) and is committed there, not pushed.
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
-- The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. The board also shows who else is on it, their pointers, and who is editing or moving which card; everyone is a guest with a made-up name. Cards can be opened on their own to edit a description. Nothing is deployed, and there is no database yet.
+- The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. The board also shows who else is on it, their pointers, and who is editing or moving which card; everyone is a guest with a made-up name. Cards can be opened on their own to edit a description. The home page `/` is a landing page with GSAP animation and a link to the demo board. Nothing is deployed, and there is no database yet.
 - [x] M0 Foundations (repo, CI, tooling)
 - [x] M1 Static board with drag and drop: mouse, touch and keyboard drag for cards and columns, inline editing, add and delete. 58 unit tests, 13 Playwright tests.
 - [x] M2 State in Yjs, two tabs in sync: Yjs document model and store, live title editing with `Y.Text`, BroadcastChannel provider, board frozen during a drag. 238 unit tests (convergence included), 22 Playwright tests (13 from M1, 9 with two tabs).
@@ -222,13 +248,16 @@ Read this before touching `layout-animator.tsx`, `lift-shadow.tsx`, `modal-dialo
 - [x] M4 Presence and cursors: avatar stack, live pointers smoothed with a spring, "is editing" and "is moving this" tags, guest names, presence kept across hibernation, pointer traffic limited to 15 messages a second. 354 core and 51 sync unit tests, 46 Playwright tests (the 29 earlier ones, 17 new with two or three browsers). The whole browser suite passed four times in a row (184 runs, 2026-11-16).
 - [ ] M5 Auth, sharing, permissions, demo board
 - [x] M6 Motion polish in the app (pull request 5): cards and columns slide into new places, lift and set-down shadows, a card dialog with a live description, a confirm dialog for deleting a column, avatar and pointer entrances, a page entrance, reduced motion throughout, the column-drag bug fixed. 375 core and 53 sync unit tests, 65 Playwright tests (the 46 earlier ones, 19 new) plus the skipped measurement. 60 frames a second dragging on 200 cards.
-- [ ] M7 GSAP landing page
+- [x] M7 GSAP landing page (branch `m7-landing-page`, not yet pushed): a hero of two people's screens showing one board, a four-step feature tour beside a sticky picture scrubbed by ScrollTrigger, "How it is built", reduced motion and no-JavaScript versions that show complete pictures. Mobile Lighthouse performance 97 to 99, no layout shift. 375 core and 53 sync unit tests (unchanged), 71 Playwright tests (the 65 earlier ones, 6 new) plus the skipped measurement; the 6 new ones passed 5 times in a row.
 - [ ] M8 Design pass, accessibility, performance
 - [ ] M9 Demo GIF, README, deploy
 
 ## Open items
 
 - CI: the `e2e` job passes on GitHub's Linux runners with one worker (first run was pull request 3). Still to try: more than one worker there (`workers` in `apps/web/playwright.config.ts`); the stall that forces one worker may be specific to the Windows machine.
+- M5: the landing page says that sign-in, sharing and boards of one's own are still being built (footer) and that the demo needs no account. Update both when M5 lands.
+- M8: the landing page was checked by eye in light and dark at phone and desktop widths, but has had no design critique yet. Its pictures are `aria-hidden` (tour) or one `role="img"` label per screen (hero); review the wording with a screen reader.
+- M9: repeat the landing page's Lighthouse run on the deployed site and on a real phone (`docs/decisions/0005`). Add a social preview image and Open Graph tags.
 - M3 stage 2: the M3 done check "restarting the sync server restores the board from Supabase" is open. Stage 1 covers the equivalent for Durable Object storage: a room that everyone left is dropped from memory and serves what was saved.
 - M5: `DOC_GENERATION` is a constant 1 in `board-session.ts`. Resetting the demo board needs the server to tell the browser the current generation, and the browser to drop a saved copy of an older one.
 - M5: the sync server accepts any connection from any origin. Tickets and the origin allowlist are M5; until then it must not be deployed.
@@ -305,3 +334,9 @@ Read this before touching `layout-animator.tsx`, `lift-shadow.tsx`, `modal-dialo
 - Reduced motion (M6) removes movement and keeps short fades, including in Motion components' start and end states.
 - `apps/sync` seeds `test-large-*` boards with 200 cards when test boards are on (M6), for the performance measurement.
 - `apps/sync` depends on `lib0` directly (M4) for reading and writing awareness messages; `y-protocols` is a test-only dependency of `apps/sync` and `packages/core`, so the tests run against the real protocol.
+- GSAP 3.15.1 and `@gsap/react` 2.1.2 are pinned (M7). GSAP's Standard ("No Charge") License allows it on any site, commercial included, without attribution; it is installed from npm, and the README says the MIT licence covers SyncBoard's own code only.
+- The landing page's pictures are SVG drawings animated by GSAP (M7), not the real board component and not screenshots, so Motion and GSAP never touch the same element and the landing bundle carries no board code.
+- The tour's picture stays in view with CSS `position: sticky` (M7). ScrollTrigger's `pin` was not used: its spacer shifts the layout when created.
+- The landing page's HTML is the complete picture (M7): the hero's starting scene, the tour's final scene. Reduced motion and no JavaScript show it as is.
+- Headings on the landing page use Schibsted Grotesk (`font-display`), loaded with `next/font` on that page only (M7). The app keeps Geist.
+- GSAP kept off the board is checked at run time with `window.gsapVersions` in a browser test (M7), chosen over scanning the build output, which depends on how Next.js splits chunks.

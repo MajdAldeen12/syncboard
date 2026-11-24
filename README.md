@@ -2,7 +2,7 @@
 
 A real-time collaborative kanban board. Several people can drag cards, edit text and see each other's cursors, and edits made offline merge cleanly on reconnect.
 
-> **Status:** early development, local only. The board at `/demo` has drag and drop (mouse, touch and keyboard) and live text editing, and syncs through a sync server that runs on your machine: open it in two browsers and watch one follow the other. Each browser keeps its own copy, so edits made while disconnected merge when the connection returns. The server is not deployed yet, and saving to a database is the next step. See [docs/PLAN.md](docs/PLAN.md) for the architecture and milestones.
+> **Status:** early development, local only. The board at `/demo` has drag and drop (mouse, touch and keyboard) and live text editing, and syncs through a sync server that runs on your machine: open it in two browsers and watch one follow the other, with each person's avatar, pointer and "is editing" tag. Each browser keeps its own copy, so edits made while disconnected merge when the connection returns. The home page introduces the project with GSAP animation. Nothing is deployed yet; sign-in, sharing and saving to a database are still to come. See [docs/PLAN.md](docs/PLAN.md) for the architecture and milestones.
 
 ## Stack
 
@@ -47,3 +47,7 @@ pnpm --filter @syncboard/web exec playwright install chromium
 - `apps/sync`: the sync server, a Cloudflare Worker with one Durable Object per board
 - `packages/core`: framework-free logic (board store, Yjs board model, text editing, ordering, sync status, permissions), unit tested
 - `docs/`: the build plan and decision records
+
+## Licence
+
+SyncBoard's own code is under the [MIT licence](LICENSE). Its dependencies keep their own licences. In particular, [GSAP](https://gsap.com), used on the landing page and installed from npm, is under the [GSAP Standard License](https://gsap.com/standard-license), not MIT.
