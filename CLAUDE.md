@@ -6,10 +6,10 @@ Real-time collaborative kanban web app. Free public tool and portfolio piece: vi
 
 ## Resume here (last updated 2026-11-24)
 
-- **State:** `main` holds milestones 0 to 2, M3 stage 1, M4 and M6. M7 (the GSAP landing page) is finished and committed on branch `m7-landing-page`, not pushed: the full gate passed locally on 2026-11-24 (428 unit tests, 71 browser tests). No pull request yet.
-- **Next:** push `m7-landing-page` and open its pull request once the owner agrees, then merge it as the earlier milestones were. After that, M8 (design pass, accessibility, performance) needs no accounts. M3 stage 2 (Supabase persistence) and M5 (sign-in, sharing, permissions) cannot start until the owner has a development Supabase project.
+- **State:** `main` holds milestones 0 to 2, M3 stage 1, M4 and M6. M7 (the GSAP landing page) is finished on branch `m7-landing-page`, pushed, with pull request 6 open (https://github.com/MajdAldeen12/syncboard/pull/6): the full gate passed locally on 2026-11-24 (428 unit tests, 71 browser tests). CI on the pull request was still to run when this was written.
+- **Next:** once CI on pull request 6 passes and the owner agrees, merge it as the earlier milestones were (squash, see "Working a milestone"). After that, M8 (design pass, accessibility, performance) needs no accounts. M3 stage 2 (Supabase persistence) and M5 (sign-in, sharing, permissions) cannot start until the owner has a development Supabase project.
 - **Waiting on the owner:**
-  - OK to push `m7-landing-page` and open its pull request.
+  - OK to merge pull request 6 (M7).
   - A look at `/` (the landing page) in a real browser, phone and desktop: the motion is judged by eye, which tests can only partly do.
   - A development Supabase project, needed for M3 stage 2 and M5.
   - A look at `/demo` as two people: two different browsers, or one normal and one private window. Two tabs of the same browser are the same guest, so they show one avatar (and each other's pointer). `pnpm dev` starts the sync server too. M2, M3 stage 1, M4 and M6 were verified by automated tests; M6 is about how things move, which tests can only partly judge.
@@ -236,7 +236,7 @@ Read this before touching `apps/web/src/app/(marketing)` or `apps/web/src/featur
 
 ## Current status
 
-- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project. M6 was done on branch `m6-motion-polish` (2026-11-16 and 17), also ahead of M3 stage 2, and merged through pull request 5 (2026-11-17). M7 was done on branch `m7-landing-page` (2026-11-17 to 24) and is committed there, not pushed.
+- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project. M6 was done on branch `m6-motion-polish` (2026-11-16 and 17), also ahead of M3 stage 2, and merged through pull request 5 (2026-11-17). M7 was done on branch `m7-landing-page` (2026-11-17 to 24); its pull request 6 is open, not merged.
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
 - The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. The board also shows who else is on it, their pointers, and who is editing or moving which card; everyone is a guest with a made-up name. Cards can be opened on their own to edit a description. The home page `/` is a landing page with GSAP animation and a link to the demo board. Nothing is deployed, and there is no database yet.
 - [x] M0 Foundations (repo, CI, tooling)
@@ -248,7 +248,7 @@ Read this before touching `apps/web/src/app/(marketing)` or `apps/web/src/featur
 - [x] M4 Presence and cursors: avatar stack, live pointers smoothed with a spring, "is editing" and "is moving this" tags, guest names, presence kept across hibernation, pointer traffic limited to 15 messages a second. 354 core and 51 sync unit tests, 46 Playwright tests (the 29 earlier ones, 17 new with two or three browsers). The whole browser suite passed four times in a row (184 runs, 2026-11-16).
 - [ ] M5 Auth, sharing, permissions, demo board
 - [x] M6 Motion polish in the app (pull request 5): cards and columns slide into new places, lift and set-down shadows, a card dialog with a live description, a confirm dialog for deleting a column, avatar and pointer entrances, a page entrance, reduced motion throughout, the column-drag bug fixed. 375 core and 53 sync unit tests, 65 Playwright tests (the 46 earlier ones, 19 new) plus the skipped measurement. 60 frames a second dragging on 200 cards.
-- [x] M7 GSAP landing page (branch `m7-landing-page`, not yet pushed): a hero of two people's screens showing one board, a four-step feature tour beside a sticky picture scrubbed by ScrollTrigger, "How it is built", reduced motion and no-JavaScript versions that show complete pictures. Mobile Lighthouse performance 97 to 99, no layout shift. 375 core and 53 sync unit tests (unchanged), 71 Playwright tests (the 65 earlier ones, 6 new) plus the skipped measurement; the 6 new ones passed 5 times in a row.
+- [x] M7 GSAP landing page (pull request 6, open): a hero of two people's screens showing one board, a four-step feature tour beside a sticky picture scrubbed by ScrollTrigger, "How it is built", reduced motion and no-JavaScript versions that show complete pictures. Mobile Lighthouse performance 97 to 99, no layout shift. 375 core and 53 sync unit tests (unchanged), 71 Playwright tests (the 65 earlier ones, 6 new) plus the skipped measurement; the 6 new ones passed 5 times in a row.
 - [ ] M8 Design pass, accessibility, performance
 - [ ] M9 Demo GIF, README, deploy
 
