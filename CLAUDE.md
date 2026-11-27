@@ -6,10 +6,9 @@ Real-time collaborative kanban web app. Free public tool and portfolio piece: vi
 
 ## Resume here (last updated 2026-11-27)
 
-- **State:** `main` holds milestones 0 to 2, M3 stage 1, M4, M6 and M7 (M7 through pull request 6, 2026-11-24). **M8 (design pass, accessibility, performance) is done on branch `m8-design-pass`**, committed locally, not pushed: every M8 done check is met except sharing in the keyboard walkthrough, which waits for M5 (`docs/decisions/0006-accessibility-and-performance.md`).
-- **Next:** push `m8-design-pass` and open its pull request once the owner agrees, then squash-merge it as "feat: design pass, accessibility and performance (M8)". After that every milestone needs something from the owner: M3 stage 2 and M5 need a development Supabase project, M9 needs hosting accounts, and the sync server must not be deployed before M5.
+- **State:** `main` holds milestones 0 to 2, M3 stage 1, M4, M6, M7 and M8. M8 (design pass, accessibility, performance) was merged through pull request 7 on 2026-11-27, after both CI jobs passed on it, and the CI run on `main` passed too. Every M8 done check is met except sharing in the keyboard walkthrough, which waits for M5 (`docs/decisions/0006-accessibility-and-performance.md`).
+- **Next:** every remaining milestone needs something from the owner: M3 stage 2 and M5 need a development Supabase project, M9 needs hosting accounts, and the sync server must not be deployed before M5. Until then, the "Open items" without a milestone are fair game.
 - **Waiting on the owner:**
-  - OK to push `m8-design-pass` and open its pull request.
   - A look at `/` and `/demo` in a real browser, phone and desktop. Motion and touch are judged by eye, which tests can only partly do. New in M8 and worth a look:
     - On a phone, the hero waits until it is scrolled into view, and a tap opens a card.
     - Deleting a card shows "Card deleted · Undo".
@@ -17,7 +16,7 @@ Real-time collaborative kanban web app. Free public tool and portfolio piece: vi
     - Someone else's pointer pinned at the board's edge when it is out of sight.
   - A development Supabase project, needed for M3 stage 2 and M5.
   - A look at `/demo` as two people: two different browsers, or one normal and one private window. Two tabs of the same browser are the same guest, so they show one avatar (and each other's pointer). `pnpm dev` starts the sync server too.
-  - OK to delete the merged branches `m1-static-board`, `m2-yjs-board`, `m3-sync-server`, `m4-presence`, `m6-motion-polish` and `m7-landing-page` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
+  - OK to delete the merged branches `m1-static-board`, `m2-yjs-board`, `m3-sync-server`, `m4-presence`, `m6-motion-polish`, `m7-landing-page` and `m8-design-pass` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
 - **First time on a machine:** `pnpm install`, then `pnpm --filter @syncboard/web exec playwright install chromium`. Run the full gate (see "Working a milestone") to confirm a clean start before changing anything.
 
 ## Product
@@ -269,7 +268,7 @@ Read this before touching `apps/web/src/app/(marketing)` or `apps/web/src/featur
 
 ## Current status
 
-- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project. M6 was done on branch `m6-motion-polish` (2026-11-16 and 17), also ahead of M3 stage 2, and merged through pull request 5 (2026-11-17). M7 was done on branch `m7-landing-page` (2026-11-17 to 24) and merged through pull request 6 (2026-11-24). M8 was done on branch `m8-design-pass` (2026-11-26 and 27), committed locally and not yet pushed.
+- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project. M6 was done on branch `m6-motion-polish` (2026-11-16 and 17), also ahead of M3 stage 2, and merged through pull request 5 (2026-11-17). M7 was done on branch `m7-landing-page` (2026-11-17 to 24) and merged through pull request 6 (2026-11-24). M8 was done on branch `m8-design-pass` (2026-11-26 and 27) and merged through pull request 7 (2026-11-27).
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
 - The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. The board also shows who else is on it, their pointers, and who is editing or moving which card; everyone is a guest with a made-up name. Cards can be opened on their own to edit a description. The home page `/` is a landing page with GSAP animation and a link to the demo board. Nothing is deployed, and there is no database yet.
 - [x] M0 Foundations (repo, CI, tooling)
@@ -282,7 +281,7 @@ Read this before touching `apps/web/src/app/(marketing)` or `apps/web/src/featur
 - [ ] M5 Auth, sharing, permissions, demo board
 - [x] M6 Motion polish in the app (pull request 5): cards and columns slide into new places, lift and set-down shadows, a card dialog with a live description, a confirm dialog for deleting a column, avatar and pointer entrances, a page entrance, reduced motion throughout, the column-drag bug fixed. 375 core and 53 sync unit tests, 65 Playwright tests (the 46 earlier ones, 19 new) plus the skipped measurement. 60 frames a second dragging on 200 cards.
 - [x] M7 GSAP landing page (pull request 6): a hero of two people's screens showing one board, a four-step feature tour beside a sticky picture scrubbed by ScrollTrigger, "How it is built", reduced motion and no-JavaScript versions that show complete pictures. Mobile Lighthouse performance 97 to 99, no layout shift. 375 core and 53 sync unit tests (unchanged), 71 Playwright tests (the 65 earlier ones, 6 new) plus the skipped measurement; the 6 new ones passed 5 times in a row.
-- [x] M8 Design pass, accessibility, performance (branch `m8-design-pass`, not yet merged): axe checks in Playwright with no violations, Lighthouse accessibility 100 on both pages, drag announcements in titles, focus management, a keyboard-only walkthrough (sharing deferred to M5), input-method-safe editing, join and leave announcements, an edge marker for pointers out of sight, an Impeccable design critique and its P0 to P2 fixes (touch-safe card actions, undo for a deleted card, one header bar, the phone hero), a bundle check, and drag measurements on 500 cards (59.7 fps, key presses within 32 ms). 410 core and 55 sync unit tests, 108 Playwright tests (the 71 earlier ones, 37 new) plus 4 skipped measurements. `docs/decisions/0006`.
+- [x] M8 Design pass, accessibility, performance (pull request 7): axe checks in Playwright with no violations, Lighthouse accessibility 100 on both pages, drag announcements in titles, focus management, a keyboard-only walkthrough (sharing deferred to M5), input-method-safe editing, join and leave announcements, an edge marker for pointers out of sight, an Impeccable design critique and its P0 to P2 fixes (touch-safe card actions, undo for a deleted card, one header bar, the phone hero), a bundle check, and drag measurements on 500 cards (59.7 fps, key presses within 32 ms). 410 core and 55 sync unit tests, 108 Playwright tests (the 71 earlier ones, 37 new) plus 4 skipped measurements. `docs/decisions/0006`.
 - [ ] M9 Demo GIF, README, deploy
 
 ## Open items
