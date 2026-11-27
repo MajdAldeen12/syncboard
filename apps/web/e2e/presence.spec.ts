@@ -124,6 +124,28 @@ test.describe("who is here", () => {
     await other.context.close();
   });
 
+  test("a screen reader is told who joins and leaves, not who was there", async ({
+    page,
+    browser,
+  }) => {
+    const boardId = newBoardId();
+    const first = await join(browser, boardId);
+    await openBoard(page, boardId);
+    const told = page.locator("[data-people-announcer]");
+    await expect(people(page)).toHaveCount(2);
+    // Whoever was already there is listed by the avatars, not announced.
+    await expect(told).toHaveText("");
+
+    const second = await join(browser, boardId);
+    await expect(told).toHaveText(`${second.name} joined the board.`);
+
+    await second.page.goto("about:blank");
+    await expect(told).toHaveText(`${second.name} left the board.`);
+
+    await first.context.close();
+    await second.context.close();
+  });
+
   test("an avatar goes when a tab is closed without warning", async ({
     page,
     browser,
@@ -357,6 +379,55 @@ test.describe("cursors", () => {
     await expect
       .poll(() => distanceFromCard(page, other.name, FIRST_CARD))
       .toBeLessThan(3);
+
+    await other.context.close();
+  });
+
+  test("a pointer out of sight is kept at the edge of the board, on the side it is", async ({
+    page,
+    browser,
+  }) => {
+    const boardId = newBoardId();
+    // A narrow window: the last column is off to the right.
+    await page.setViewportSize({ width: 520, height: 600 });
+    await openBoard(page, boardId);
+    const other = await join(browser, boardId);
+    const pointer = cursorOf(page, other.name);
+    const boardBox = async () =>
+      (await page.locator("[data-board-scroll]").boundingBox())!;
+    const markerBox = async () =>
+      (await pointer.locator("[data-presence-cursor-body]").boundingBox())!;
+
+    // They point at the last card, which is out of sight here.
+    const last = await centre(card(other.page, LAST_CARD));
+    await other.page.mouse.move(last.x, last.y);
+    await expect(pointer).toHaveAttribute("data-presence-offscreen", "right");
+    await expect(pointer).toBeVisible();
+    await expect(pointer).toContainText(other.name);
+    // Against the right edge, inside the board. It glides there, so the
+    // distance is waited for.
+    const fromRight = async () => {
+      const board = await boardBox();
+      const marker = await markerBox();
+      return board.x + board.width - (marker.x + marker.width);
+    };
+    await expect.poll(fromRight).toBeLessThan(24);
+    expect(await fromRight()).toBeGreaterThanOrEqual(0);
+
+    // Scrolled into sight, it is an ordinary pointer on the card again.
+    await card(page, LAST_CARD).scrollIntoViewIfNeeded();
+    await expect(pointer).not.toHaveAttribute("data-presence-offscreen");
+    await expect
+      .poll(() => distanceFromCard(page, other.name, LAST_CARD))
+      .toBeLessThan(3);
+
+    // Now the first column is out of sight, to the left.
+    const first = await centre(card(other.page, FIRST_CARD));
+    await other.page.mouse.move(first.x, first.y);
+    await expect(pointer).toHaveAttribute("data-presence-offscreen", "left");
+    const fromLeft = async () => (await markerBox()).x - (await boardBox()).x;
+    await expect.poll(fromLeft).toBeLessThan(24);
+    expect(await fromLeft()).toBeGreaterThanOrEqual(0);
 
     await other.context.close();
   });

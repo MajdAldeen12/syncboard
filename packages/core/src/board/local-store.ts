@@ -270,9 +270,14 @@ export function createLocalBoardStore(
     },
 
     deleteCard(cardId) {
-      if (!card(cardId)) return;
+      const deleted = card(cardId);
+      if (!deleted) return null;
 
       commit({ ...state, cards: omit(state.cards, (id) => id === cardId) });
+      return () => {
+        if (card(cardId)) return;
+        commit({ ...state, cards: { ...state.cards, [cardId]: deleted } });
+      };
     },
 
     moveCard(cardId, toColumnId, toIndex) {

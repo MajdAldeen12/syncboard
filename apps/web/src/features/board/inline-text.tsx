@@ -211,7 +211,11 @@ export function InlineText({
       onClick={() => setEditing(true)}
       className="block w-full cursor-text rounded px-1 py-0.5 text-left wrap-break-word outline-offset-1 hover:bg-black/5 focus-visible:outline-2 focus-visible:outline-blue-600 dark:hover:bg-white/10"
     >
-      {value || <span className="text-zinc-400">Untitled</span>}
+      {value || (
+        <span className="text-zinc-600 italic dark:text-zinc-400">
+          Untitled
+        </span>
+      )}
     </button>
   );
 }

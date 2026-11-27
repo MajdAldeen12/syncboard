@@ -31,6 +31,8 @@ test-results/
 .vercel/
 .turbo/
 .superpowers/
+# Impeccable design tool: local critique snapshots and hook state
+.impeccable/
 .claude/settings.local.json
 
 # os / editors

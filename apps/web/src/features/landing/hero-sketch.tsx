@@ -106,7 +106,9 @@ export function HeroSketch() {
   useGSAP(
     () => {
       const mm = gsap.matchMedia();
-      mm.add(MEDIA.motion, () => {
+      mm.add({ motion: MEDIA.motion, wide: MEDIA.wide }, (context) => {
+        const { motion, wide } = context.conditions ?? {};
+        if (!motion) return;
         const $ = (id: string) => `[data-sketch="${id}"]`;
         // How far a pointer must go from its resting place to `point`.
         const from = (
@@ -143,8 +145,23 @@ export function HeroSketch() {
         const settle = { duration: 0.25, ease: "power2.out" };
         const lift = { duration: 0.15, ease: "power1.out" };
 
+        // Side by side, both screens are in view as the page opens, and the
+        // story starts shortly after. Stacked on a narrow screen, the second
+        // screen is below the fold: the story waits until both are in view,
+        // or nobody would see the second half of it.
+        const start = wide
+          ? { delay: 0.6 }
+          : {
+              delay: 0.2,
+              scrollTrigger: {
+                trigger: root.current,
+                start: "bottom bottom",
+                once: true,
+              },
+            };
+
         gsap
-          .timeline({ delay: 0.6, defaults: { ease: "power2.inOut" } })
+          .timeline({ ...start, defaults: { ease: "power2.inOut" } })
           // Quiet Otter reaches for a card. Heron's screen shows the pointer.
           .addLabel("reach")
           .to($("a-otter"), { ...otterGrip, duration: 0.7 }, "reach")

@@ -38,6 +38,7 @@ async function deleteCard(tab: Page, title: string) {
 }
 
 async function startEditing(tab: Page, title: string) {
+  await card(tab, title).hover();
   await tab
     .getByRole("button", { name: `Edit card: ${title}`, exact: true })
     .click();
@@ -208,6 +209,41 @@ test.describe("two tabs, harder cases", () => {
         .poll(() => cardsIn(tab, "Done"))
         .toEqual([`A B ${LAST_CARD} Z`]);
     }
+  });
+
+  test("the other tab's typing waits while an input method is composing", async ({
+    page,
+  }) => {
+    // Japanese, Chinese and Korean keyboards compose a word in the field
+    // before committing it. Replacing the field's text meanwhile would throw
+    // the composition away, so text from elsewhere waits until it is done.
+    await startEditing(page, LAST_CARD);
+    await page.keyboard.press("End");
+    const field = page.getByRole("textbox");
+    const ime = await page.context().newCDPSession(page);
+    await ime.send("Input.imeSetComposition", {
+      text: "にほん",
+      selectionStart: 3,
+      selectionEnd: 3,
+    });
+    await expect(field).toHaveValue(`${LAST_CARD}にほん`);
+
+    // The other tab types at the start of the same title meanwhile.
+    await startEditing(other, LAST_CARD);
+    await other.keyboard.press("Home");
+    await other.keyboard.type("A ");
+    await expect(other.getByRole("textbox")).toHaveValue(`A ${LAST_CARD}`);
+    // Long enough for it to have arrived. The composition is untouched.
+    await page.waitForTimeout(500);
+    await expect(field).toHaveValue(`${LAST_CARD}にほん`);
+
+    // Committed, the word goes in after the other tab's edit, and the
+    // caret is still at the end of it.
+    await ime.send("Input.insertText", { text: "日本" });
+    await expect(field).toHaveValue(`A ${LAST_CARD}日本`);
+    await expect(other.getByRole("textbox")).toHaveValue(`A ${LAST_CARD}日本`);
+    await page.keyboard.type("!");
+    await expect(field).toHaveValue(`A ${LAST_CARD}日本!`);
   });
 
   test("changes from the other tab wait while a card is held, then both agree", async ({

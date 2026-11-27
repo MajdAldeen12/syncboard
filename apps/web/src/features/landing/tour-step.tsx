@@ -17,7 +17,7 @@ export function TourStep({
   return (
     <section
       aria-labelledby={id}
-      className="flex min-h-[70svh] flex-col justify-center py-10 md:min-h-[80svh]"
+      className="flex min-h-[55svh] flex-col justify-center py-10 md:min-h-[65svh]"
     >
       <h2
         id={id}

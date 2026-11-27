@@ -36,21 +36,29 @@ export function seedFor(
   if (boardId !== DEMO_BOARD_ID && !isTestBoard) return null;
 
   if (isTestBoard && boardId.startsWith("test-large-")) {
-    return encodeBoardState(largeBoard());
+    return encodeBoardState(
+      largeBoard(["Backlog", "In progress", "Review", "Done"], 50),
+    );
+  }
+  if (isTestBoard && boardId.startsWith("test-huge-")) {
+    return encodeBoardState(
+      largeBoard(["Backlog", "Ready", "In progress", "Review", "Done"], 100),
+    );
   }
   return encodeBoardState(createSeedBoard());
 }
 
 /**
- * Four columns of 50 cards, for measuring how the board copes with many
- * cards. Test boards named `test-large-*` start with it.
+ * Many cards, for measuring how the board copes with them: `perColumn`
+ * cards in each of the columns titled `titles`. Test boards named
+ * `test-large-*` start with 200 cards in four columns, `test-huge-*` with
+ * 500 in five.
  */
-function largeBoard(): BoardState {
+function largeBoard(titles: readonly string[], perColumn: number): BoardState {
   const columns: Record<string, ColumnRecord> = {};
   const cards: Record<string, CardRecord> = {};
-  const titles = ["Backlog", "In progress", "Review", "Done"];
   const columnOrders = initialOrders(titles.length);
-  const cardOrders = initialOrders(50);
+  const cardOrders = initialOrders(perColumn);
 
   titles.forEach((title, columnIndex) => {
     const columnId = `large-column-${columnIndex + 1}`;

@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { PlusIcon } from "./icons";
+import { useFocusAfterEdit } from "./inline-text";
 
 interface AddItemProps {
   /** Text of the button that opens the form, e.g. "Add a card". */
@@ -24,8 +25,11 @@ export function AddItem({
 }: AddItemProps) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
+  // Closing the form puts focus back on the button that opened it.
+  const [buttonRef, requestFocus] = useFocusAfterEdit<HTMLButtonElement>(open);
 
   function close() {
+    requestFocus();
     setOpen(false);
     setTitle("");
   }
@@ -38,7 +42,9 @@ export function AddItem({
   if (!open) {
     return (
       <button
+        ref={buttonRef}
         type="button"
+        data-add-button
         onClick={() => setOpen(true)}
         className="flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-zinc-600 outline-offset-1 hover:bg-zinc-200 focus-visible:outline-2 focus-visible:outline-blue-600 dark:text-zinc-400 dark:hover:bg-zinc-800"
       >
@@ -63,7 +69,7 @@ export function AddItem({
           event.stopPropagation();
           if (event.key === "Escape") close();
         }}
-        className="w-full rounded-lg bg-white px-3 py-2 text-sm shadow-sm ring-1 ring-black/10 outline-offset-1 focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-zinc-800 dark:ring-white/10"
+        className="w-full rounded-lg bg-white px-3 py-2 text-sm shadow-sm placeholder:text-zinc-500 dark:placeholder:text-zinc-400 ring-1 ring-black/10 outline-offset-1 focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-zinc-800 dark:ring-white/10"
       />
       <div className="flex gap-2">
         <button

@@ -7,7 +7,7 @@ import {
 } from "@syncboard/core/board";
 import { useId } from "react";
 import { DescriptionField } from "./description-field";
-import { CloseIcon } from "./icons";
+import { CloseIcon, TrashIcon } from "./icons";
 import { InlineText } from "./inline-text";
 import { ModalDialog } from "./modal-dialog";
 
@@ -16,6 +16,8 @@ interface CardDialogProps {
   card: CardView;
   /** The name of the column the card is in. */
   columnName: string;
+  /** Deletes the card, with a chance to take it back, and closes the dialog. */
+  onDelete: () => void;
   onDismiss: () => void;
 }
 
@@ -24,6 +26,7 @@ export function CardDialog({
   store,
   card,
   columnName,
+  onDelete,
   onDismiss,
 }: CardDialogProps) {
   const descriptionId = useId();
@@ -52,7 +55,7 @@ export function CardDialog({
           </button>
         </div>
 
-        <p className="px-1 text-xs text-zinc-500">
+        <p className="px-1 text-xs text-zinc-600 dark:text-zinc-400">
           In <span className="font-medium">{columnName}</span>
         </p>
 
@@ -68,6 +71,17 @@ export function CardDialog({
           cardId={card.id}
           value={card.description}
         />
+
+        <div className="mt-3 flex justify-end">
+          <button
+            type="button"
+            onClick={onDelete}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-zinc-700 outline-offset-1 hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-blue-600 dark:text-zinc-300 dark:hover:bg-red-950/50 dark:hover:text-red-300"
+          >
+            <TrashIcon />
+            Delete card
+          </button>
+        </div>
       </div>
     </ModalDialog>
   );

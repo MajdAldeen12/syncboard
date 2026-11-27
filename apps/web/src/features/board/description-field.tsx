@@ -77,7 +77,7 @@ export function DescriptionField({
         stop();
         setFocused(false);
       }}
-      className="block min-h-28 w-full resize-none rounded-lg bg-zinc-50 px-3 py-2 text-sm field-sizing-content outline-offset-1 placeholder:text-zinc-400 focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-zinc-950"
+      className="block min-h-28 w-full resize-none rounded-lg bg-zinc-50 px-3 py-2 text-sm field-sizing-content outline-offset-1 placeholder:text-zinc-500 focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-zinc-950"
     />
   );
 }

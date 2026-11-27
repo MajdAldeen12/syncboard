@@ -80,3 +80,39 @@ export function locateCursor(
     y: box.top + cursor.y * box.height,
   };
 }
+
+/** The edge of a box that something out of it is beyond. */
+export type Side = "left" | "right" | "top" | "bottom";
+
+/**
+ * Keeps a point within `box`, for drawing a pointer that is out of sight at
+ * the edge nearest to it. `side` is the edge it was pinned to, or null if it
+ * was inside. Off a corner, the side is the one it is furthest beyond.
+ */
+export function pinToBox(
+  point: Point,
+  box: Box,
+): { point: Point; side: Side | null } {
+  const right = box.left + box.width;
+  const bottom = box.top + box.height;
+  const pinned = {
+    x: clamp(point.x, box.left, right),
+    y: clamp(point.y, box.top, bottom),
+  };
+
+  const beyond: [Side, number][] = [
+    ["left", box.left - point.x],
+    ["right", point.x - right],
+    ["top", box.top - point.y],
+    ["bottom", point.y - bottom],
+  ];
+  let side: Side | null = null;
+  let furthest = 0;
+  for (const [edge, distance] of beyond) {
+    if (distance > furthest) {
+      furthest = distance;
+      side = edge;
+    }
+  }
+  return { point: side === null ? point : pinned, side };
+}

@@ -131,6 +131,52 @@ export function describeBoardStore(
       expect(shape(store.getSnapshot())[0]).toEqual(["Todo", ["a", "c"]]);
     });
 
+    it("puts a deleted card back where it was, with its text", () => {
+      const { store, cards } = boardWithCards();
+      store.updateCard(cards.b, { description: "details" });
+      const before = store.getSnapshot().columns[0]!.cards[1]!;
+
+      const restore = store.deleteCard(cards.b);
+      expect(shape(store.getSnapshot())[0]).toEqual(["Todo", ["a", "c"]]);
+      restore!();
+
+      expect(shape(store.getSnapshot())[0]).toEqual(["Todo", ["a", "b", "c"]]);
+      const after = store.getSnapshot().columns[0]!.cards[1]!;
+      expect(after).toEqual(before);
+    });
+
+    it("puts a deleted card back only once", () => {
+      const { store, cards } = boardWithCards();
+      const restore = store.deleteCard(cards.b)!;
+      restore();
+      const listener = vi.fn();
+      store.subscribe(listener);
+
+      restore();
+
+      expect(listener).not.toHaveBeenCalled();
+      expect(shape(store.getSnapshot())[0]).toEqual(["Todo", ["a", "b", "c"]]);
+    });
+
+    it("puts a deleted card back next to the cards it was between, after others moved", () => {
+      const { store, cards, doing } = boardWithCards();
+      const restore = store.deleteCard(cards.b)!;
+      store.moveCard(cards.c, doing, 0);
+
+      restore();
+
+      expect(shape(store.getSnapshot())).toEqual([
+        ["Todo", ["a", "b"]],
+        ["Doing", ["c", "d"]],
+        ["Done", []],
+      ]);
+    });
+
+    it("has nothing to put back when the card did not exist", () => {
+      const store = emptyStore();
+      expect(store.deleteCard("missing")).toBeNull();
+    });
+
     it("does not add a card to a column that does not exist", () => {
       const store = emptyStore();
 

@@ -12,6 +12,9 @@ import { itemKey, type Activity } from "@syncboard/core/presence";
 import { ActivityTag, activityOutline } from "@/features/presence/activity-tag";
 import { AddItem } from "./add-item";
 import { Card } from "./card";
+import { COLUMN_HELP_ID } from "./drag-announcer";
+import { focusTargetAfterColumn } from "./focus";
+import { COLUMN_WIDTH } from "./layout";
 import { GripIcon, TrashIcon } from "./icons";
 import { InlineText } from "./inline-text";
 import { LiftShadow } from "./lift-shadow";
@@ -26,6 +29,8 @@ interface ColumnProps {
   activity: ReadonlyMap<string, readonly Activity[]>;
   /** Opens a card on its own. */
   onOpenCard: (cardId: string) => void;
+  /** Deletes a card, with a chance to take it back. */
+  onDeleteCard: (cardId: string) => void;
   /** Asks before deleting a column that still has cards in it. */
   onConfirmDelete: (request: DeleteRequest) => void;
 }
@@ -44,6 +49,7 @@ export function Column({
   store,
   activity,
   onOpenCard,
+  onDeleteCard,
   onConfirmDelete,
 }: ColumnProps) {
   const { ref, handleRef, isDragging } = useSortable({
@@ -63,9 +69,15 @@ export function Column({
   const outline = activityOutline(others);
 
   function deleteColumn() {
-    if (cards.length === 0) store.deleteColumn(column.id);
-    else
+    if (cards.length > 0) {
       onConfirmDelete({ columnId: column.id, name, cardCount: cards.length });
+      return;
+    }
+    // The delete button goes with the column, so focus moves on first.
+    document
+      .querySelector<HTMLElement>(focusTargetAfterColumn(column.id))
+      ?.focus();
+    store.deleteColumn(column.id);
   }
 
   return (
@@ -74,7 +86,7 @@ export function Column({
       data-column-id={column.id}
       aria-label={name}
       style={outline.style}
-      className={`relative flex max-h-full w-72 shrink-0 flex-col rounded-xl bg-zinc-100 dark:bg-zinc-900 ${outline.className}`}
+      className={`relative flex max-h-full ${COLUMN_WIDTH} shrink-0 flex-col rounded-xl bg-zinc-100 dark:bg-zinc-900 ${outline.className}`}
     >
       <LiftShadow
         lifted={isDragging}
@@ -88,7 +100,8 @@ export function Column({
           type="button"
           data-drag-handle
           aria-label={`Reorder column ${name}`}
-          className="flex size-7 shrink-0 cursor-grab items-center justify-center rounded text-zinc-400 outline-offset-1 hover:bg-zinc-200 hover:text-zinc-600 focus-visible:outline-2 focus-visible:outline-blue-600 active:cursor-grabbing dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+          aria-describedby={COLUMN_HELP_ID}
+          className="flex size-7 shrink-0 cursor-grab items-center justify-center rounded text-zinc-500 outline-offset-1 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 focus-visible:outline-2 focus-visible:outline-blue-600 active:cursor-grabbing dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
         >
           <GripIcon />
         </button>
@@ -103,7 +116,7 @@ export function Column({
           />
         </h2>
 
-        <span className="px-1 text-xs tabular-nums text-zinc-500">
+        <span className="px-1 text-xs tabular-nums text-zinc-600 dark:text-zinc-400">
           <span className="sr-only">Cards: </span>
           {cards.length}
         </span>
@@ -113,7 +126,7 @@ export function Column({
           data-delete-column
           aria-label={`Delete column ${name}`}
           onClick={deleteColumn}
-          className="flex size-7 shrink-0 items-center justify-center rounded text-zinc-400 outline-offset-1 hover:bg-zinc-200 hover:text-red-600 focus-visible:outline-2 focus-visible:outline-blue-600 dark:hover:bg-zinc-800"
+          className="flex size-7 shrink-0 items-center justify-center rounded text-zinc-500 outline-offset-1 hover:bg-zinc-200 hover:text-red-600 dark:text-zinc-400 focus-visible:outline-2 focus-visible:outline-blue-600 dark:hover:bg-zinc-800"
         >
           <TrashIcon />
         </button>
@@ -135,6 +148,7 @@ export function Column({
             store={store}
             activity={activity.get(itemKey({ kind: "card", id: card.id }))}
             onOpen={onOpenCard}
+            onDelete={onDeleteCard}
           />
         ))}
       </div>

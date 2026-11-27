@@ -1,7 +1,12 @@
 "use client";
 
 import { move } from "@dnd-kit/helpers";
-import { DragDropProvider, useDragOperation } from "@dnd-kit/react";
+import { defaultPreset } from "@dnd-kit/dom";
+import {
+  DragDropProvider,
+  KeyboardSensor,
+  useDragOperation,
+} from "@dnd-kit/react";
 import { isSortable } from "@dnd-kit/react/sortable";
 import {
   MAX_TITLE_LENGTH,
@@ -28,10 +33,15 @@ import {
 } from "@/features/presence/presence-context";
 import { usePublishCursor } from "@/features/presence/use-publish-cursor";
 import { AddItem } from "./add-item";
+import { AppHeader } from "./app-header";
 import { CardDialog } from "./card-dialog";
 import { Column, type DeleteRequest } from "./column";
 import { ConfirmDialog } from "./confirm-dialog";
+import { DragAnnouncer, DragHelp, BOARD_PLUGINS } from "./drag-announcer";
+import { focusTargetAfterCard, focusTargetAfterColumn } from "./focus";
+import { COLUMN_WIDTH } from "./layout";
 import { LayoutAnimator } from "./layout-animator";
+import { UndoToast } from "./undo-toast";
 
 /** Which cards sit in which column, by id. */
 type CardLayout = Record<string, string[]>;
@@ -71,6 +81,49 @@ function findCard(
   return null;
 }
 
+/**
+ * dnd-kit's default sensors, with the keyboard picking an item up on Space
+ * only. Enter on a card opens it instead; while an item is held, Enter
+ * drops it like Space.
+ *
+ * A constant, not a function of the defaults: `DragDropProvider` runs such
+ * a function on every render and compares what it returns by identity, so a
+ * fresh list would be handed to every card on the board each time anything
+ * changed.
+ */
+const BOARD_SENSORS = defaultPreset.sensors.map((sensor) =>
+  sensor === KeyboardSensor
+    ? KeyboardSensor.configure({
+        keyboardCodes: {
+          start: ["Space"],
+          cancel: ["Escape"],
+          end: ["Space", "Enter", "Tab"],
+          up: ["ArrowUp"],
+          down: ["ArrowDown"],
+          left: ["ArrowLeft"],
+          right: ["ArrowRight"],
+        },
+      })
+    : sensor,
+);
+
+/** A card this person deleted, which they can still put back. */
+interface DeletedCard {
+  readonly key: number;
+  readonly cardId: string;
+  readonly title: string;
+  readonly restore: () => void;
+}
+
+/** Whether a key press is meant for a text field rather than the board. */
+function isTyping(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  );
+}
+
 /** Calls `onIdle` once no drag is in progress, including its drop animation. */
 function WhenDragIdle({ onIdle }: { onIdle: () => void }) {
   const idle = useDragOperation().source == null;
@@ -86,7 +139,7 @@ interface BoardProps {
   store: BoardStore;
   /** Who else is on the board, and what this tab tells them. */
   presence: PresenceStore;
-  /** Shown at the end of the title row, for instance the sync status. */
+  /** Shown at the end of the header bar, for instance the sync status. */
   headerEnd?: ReactNode;
 }
 
@@ -137,7 +190,7 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
   // back to where the person was: `returnFocus` is that element.
   const [openCardId, setOpenCardId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<DeleteRequest | null>(null);
-  const returnFocus = useRef<string | null>(null);
+  const returnFocus = useRef<string | HTMLElement | null>(null);
   const openCard = useCallback((cardId: string) => {
     returnFocus.current = `[data-card-id="${CSS.escape(cardId)}"]`;
     setOpenCardId(cardId);
@@ -146,6 +199,52 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
     returnFocus.current = `[data-column-id="${CSS.escape(request.columnId)}"] [data-delete-column]`;
     setDeleting(request);
   }, []);
+  // A card deleted by this person, offered back for a few seconds. Deleting
+  // another replaces the offer.
+  const [deleted, setDeleted] = useState<DeletedCard | null>(null);
+  const deletions = useRef(0);
+  const deleteCard = useCallback(
+    (cardId: string) => {
+      const title = findCard(store.getSnapshot(), cardId)?.card.title;
+      const restore = store.deleteCard(cardId);
+      if (!restore) return;
+      deletions.current += 1;
+      setDeleted({
+        key: deletions.current,
+        cardId,
+        title: title || "Untitled card",
+        restore,
+      });
+    },
+    [store],
+  );
+  const undoDelete = useCallback(() => {
+    if (!deleted) return;
+    deleted.restore();
+    setDeleted(null);
+    focusAfterRender.current = `[data-card-id="${CSS.escape(deleted.cardId)}"]`;
+  }, [deleted]);
+
+  // Ctrl+Z (Cmd+Z) takes the deletion back while it is offered, unless a
+  // text field has focus: there it undoes typing, as it always does.
+  useEffect(() => {
+    if (!deleted) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key.toLowerCase() === "z" &&
+        (event.ctrlKey || event.metaKey) &&
+        !event.shiftKey &&
+        !event.altKey &&
+        !isTyping(event.target)
+      ) {
+        event.preventDefault();
+        undoDelete();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [deleted, undoDelete]);
+
   // The open card as it is now. Gone if someone else deleted it, which
   // closes the dialog.
   const opened = openCardId ? findCard(live, openCardId) : null;
@@ -160,6 +259,8 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
 
   return (
     <DragDropProvider
+      plugins={BOARD_PLUGINS}
+      sensors={BOARD_SENSORS}
       onBeforeDragStart={() => {
         // dnd-kit measures what it picks up. Nothing may be mid-slide then.
         animator.current?.finish();
@@ -254,6 +355,9 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
         }
       }}
     >
+      <DragAnnouncer store={store} />
+      <DragHelp />
+
       {settling && (
         <WhenDragIdle
           onIdle={() => {
@@ -271,15 +375,10 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
       */}
       <MotionConfig reducedMotion="user">
         <PresenceProvider value={presence}>
-          {/* Positioned, so that the pointers can be laid over the board. */}
-          <div className="relative flex min-h-0 flex-1 flex-col">
-            <div className="flex shrink-0 items-center justify-between gap-4 px-4 pt-4">
-              <h1 className="text-lg font-semibold tracking-tight">
-                {board.title}
-              </h1>
-              {headerEnd}
-            </div>
+          <AppHeader title={board.title || "Untitled board"} end={headerEnd} />
 
+          {/* Positioned, so that the pointers can be laid over the board. */}
+          <main className="relative flex min-h-0 flex-1 flex-col">
             <div
               ref={scroller}
               data-board-scroll
@@ -307,13 +406,14 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
                       store={store}
                       activity={activity}
                       onOpenCard={openCard}
+                      onDeleteCard={deleteCard}
                       onConfirmDelete={confirmDelete}
                     />
                   );
                 })}
               </LayoutAnimator>
 
-              <div className="w-72 shrink-0">
+              <div data-add-column className={`${COLUMN_WIDTH} shrink-0`}>
                 <AddItem
                   label="Add a column"
                   placeholder="Column title"
@@ -328,16 +428,35 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
               scrollerRef={scroller}
               layout={drag?.layout ?? board}
             />
-          </div>
+
+            {/* Above the board's bottom edge, clear of its scroll bar. */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-6 z-40 flex justify-center px-4">
+              <AnimatePresence>
+                {deleted && (
+                  <UndoToast
+                    key={deleted.key}
+                    message="Card deleted"
+                    subject={deleted.title}
+                    onUndo={undoDelete}
+                    onDismiss={() => setDeleted(null)}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+          </main>
 
           <AnimatePresence
             onExitComplete={() => {
-              const selector = returnFocus.current;
+              const wanted = returnFocus.current;
               returnFocus.current = null;
               // A column that was just deleted cannot take focus back; the
               // board's first column handle, or "Add a column", does.
               const target =
-                (selector && document.querySelector<HTMLElement>(selector)) ||
+                (typeof wanted === "string"
+                  ? document.querySelector<HTMLElement>(wanted)
+                  : wanted?.isConnected
+                    ? wanted
+                    : null) ||
                 scroller.current?.querySelector<HTMLElement>(
                   "[data-drag-handle], button",
                 );
@@ -350,6 +469,18 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
                 store={store}
                 card={opened.card}
                 columnName={opened.columnName}
+                onDelete={() => {
+                  // Focus goes to the card's neighbour once the dialog has
+                  // closed: the card it came from is gone.
+                  const element = document.querySelector<HTMLElement>(
+                    `[data-card-id="${CSS.escape(opened.card.id)}"]`,
+                  );
+                  returnFocus.current = element
+                    ? focusTargetAfterCard(element)
+                    : null;
+                  deleteCard(opened.card.id);
+                  setOpenCardId(null);
+                }}
                 onDismiss={() => setOpenCardId(null)}
               />
             )}
@@ -364,6 +495,11 @@ export function Board({ store, presence, headerEnd }: BoardProps) {
                 }
                 confirmLabel="Delete column"
                 onConfirm={() => {
+                  // The column's delete button goes with it. Focus goes to
+                  // the column that takes its place.
+                  returnFocus.current = focusTargetAfterColumn(
+                    deleting.columnId,
+                  );
                   store.deleteColumn(deleting.columnId);
                   setDeleting(null);
                 }}
