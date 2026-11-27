@@ -1,14 +1,5 @@
-import type { Activity } from "@syncboard/core/presence";
+import { describeActivity, type Activity } from "@syncboard/core/presence";
 import type { CSSProperties } from "react";
-
-function describe(activity: readonly Activity[]): string {
-  const [first, ...others] = activity;
-  if (!first) return "";
-  if (others.length > 0) return `${first.user.name} and ${others.length} more`;
-  return first.doing === "editing"
-    ? `${first.user.name} is editing`
-    : `${first.user.name} is moving this`;
-}
 
 /**
  * The outline for a card or column somebody else has open or in hand, in
@@ -51,7 +42,7 @@ export function ActivityTag({ activity, item }: ActivityTagProps) {
         item === "card" ? "-top-1.5" : "-top-2"
       }`}
     >
-      {describe(activity)}
+      {describeActivity(activity)}
     </span>
   );
 }

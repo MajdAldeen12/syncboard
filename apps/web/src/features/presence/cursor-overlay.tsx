@@ -2,10 +2,12 @@
 
 import {
   locateCursor,
+  pinToBox,
   type Box,
   type CursorPosition,
   type Point,
   type PresenceStore,
+  type Side,
 } from "@syncboard/core/presence";
 import {
   AnimatePresence,
@@ -20,6 +22,7 @@ import {
   useEffect,
   useLayoutEffect,
   useRef,
+  useState,
   type RefObject,
 } from "react";
 import { usePresence } from "./presence-context";
@@ -66,12 +69,52 @@ function findBox(
   return { left: box.left, top, width: box.width, height: bottom - top };
 }
 
+/** How far inside the visible board a pointer out of sight is kept. */
+const EDGE_INSET = { x: 4, y: 12 };
+
+/**
+ * Where the pointer's body sits against the point it is placed at. An
+ * ordinary pointer hangs from its tip; a marker at an edge lies along it,
+ * on the inside.
+ */
+const MARKER_PLACEMENT: Record<Side, string> = {
+  left: "-translate-y-1/2 origin-left",
+  right: "-translate-x-full -translate-y-1/2 origin-right",
+  top: "-translate-x-1/2 origin-top",
+  bottom: "-translate-x-1/2 -translate-y-full origin-bottom",
+};
+
+/** A chevron pointing towards `side`. */
+function Chevron({ side }: { side: Side }) {
+  const turn = { right: 0, bottom: 90, left: 180, top: 270 }[side];
+  return (
+    <svg
+      width="8"
+      height="8"
+      viewBox="0 0 8 8"
+      className="shrink-0"
+      style={{ transform: `rotate(${turn}deg)` }}
+    >
+      <path
+        d="M2.5 1 5.5 4 2.5 7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 interface RemoteCursorProps {
   name: string;
   color: string;
   cursor: CursorPosition;
   /** Where a cursor belongs inside the overlay, or null if nowhere. */
   locate: (cursor: CursorPosition) => Point | null;
+  /** The part of the board in sight, inside the overlay, or null if none. */
+  visibleArea: () => Box | null;
   /** Lets the overlay move this pointer when the board scrolls. */
   register: (place: Place) => () => void;
   /** Changes whenever the board is drawn differently. */
@@ -83,6 +126,7 @@ const RemoteCursor = memo(function RemoteCursor({
   color,
   cursor,
   locate,
+  visibleArea,
   register,
   layout,
 }: RemoteCursorProps) {
@@ -92,16 +136,32 @@ const RemoteCursor = memo(function RemoteCursor({
   const opacity = useMotionValue(0);
   const latest = useRef(cursor);
   const placed = useRef(false);
+  // The edge it is kept at while what it points at is out of sight here.
+  const [side, setSide] = useState<Side | null>(null);
 
   const place = useCallback<Place>(
     (immediate) => {
-      const point = locate(latest.current);
-      if (point === null) {
+      const found = locate(latest.current);
+      const area = visibleArea();
+      if (found === null || area === null) {
         // What it points at is not on this screen right now.
         opacity.set(0);
         placed.current = false;
         return;
       }
+
+      // Scrolled out of sight here, it is shown at the nearest edge of the
+      // board, so that nobody is lost from view.
+      const inside = {
+        left: area.left + EDGE_INSET.x,
+        top: area.top + EDGE_INSET.y,
+        width: Math.max(0, area.width - 2 * EDGE_INSET.x),
+        height: Math.max(0, area.height - 2 * EDGE_INSET.y),
+      };
+      const pinned = pinToBox(found, area);
+      const point =
+        pinned.side === null ? found : pinToBox(found, inside).point;
+      setSide(pinned.side);
 
       if (immediate || still || !placed.current) {
         x.jump(point.x);
@@ -113,7 +173,7 @@ const RemoteCursor = memo(function RemoteCursor({
       placed.current = true;
       opacity.set(1);
     },
-    [locate, opacity, still, x, y],
+    [locate, visibleArea, opacity, still, x, y],
   );
 
   useLayoutEffect(() => {
@@ -127,8 +187,10 @@ const RemoteCursor = memo(function RemoteCursor({
     <motion.div
       data-presence-cursor
       data-user-name={name}
+      data-presence-offscreen={side ?? undefined}
       style={{ x, y, opacity }}
-      className="absolute top-0 left-0"
+      // Seen, although the layer it is on is not (see CursorOverlay).
+      className="visible absolute top-0 left-0"
     >
       {/*
         Where the pointer is lives on the outer element, in motion values.
@@ -137,33 +199,47 @@ const RemoteCursor = memo(function RemoteCursor({
       */}
       <motion.div
         data-presence-cursor-body
-        className="relative origin-top-left"
+        className={`relative ${side ? MARKER_PLACEMENT[side] : "origin-top-left"}`}
         initial={still ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={still ? { opacity: 0 } : { opacity: 0, scale: 0.6 }}
         transition={{ duration: 0.15, ease: "easeOut" }}
       >
-        {/* The tip of the arrow is the top-left corner of this element. */}
-        <svg
-          width="12"
-          height="16"
-          viewBox="0 0 12 16"
-          className="block overflow-visible drop-shadow-sm"
-        >
-          <path
-            d="M0 0v12.6l3.5-3.3 2.4 5.6 2.2-.95-2.4-5.5h4.9Z"
-            fill={color}
-            stroke="white"
-            strokeWidth="1"
-            strokeLinejoin="round"
-          />
-        </svg>
-        <span
-          style={{ backgroundColor: color }}
-          className="absolute top-4 left-3 max-w-40 truncate rounded px-1.5 text-[11px]/4 font-medium whitespace-nowrap text-white shadow-sm"
-        >
-          {name}
-        </span>
+        {side ? (
+          <span
+            style={{ backgroundColor: color }}
+            className={`flex max-w-40 items-center gap-1 rounded-full px-2 text-[11px]/5 font-medium whitespace-nowrap text-white shadow-md ring-1 ring-white/70 ${
+              side === "right" ? "flex-row-reverse" : ""
+            }`}
+          >
+            <Chevron side={side} />
+            <span className="truncate">{name}</span>
+          </span>
+        ) : (
+          <>
+            {/* The tip of the arrow is the top-left corner of this element. */}
+            <svg
+              width="12"
+              height="16"
+              viewBox="0 0 12 16"
+              className="block overflow-visible drop-shadow-sm"
+            >
+              <path
+                d="M0 0v12.6l3.5-3.3 2.4 5.6 2.2-.95-2.4-5.5h4.9Z"
+                fill={color}
+                stroke="white"
+                strokeWidth="1"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span
+              style={{ backgroundColor: color }}
+              className="absolute top-4 left-3 max-w-40 truncate rounded px-1.5 text-[11px]/4 font-medium whitespace-nowrap text-white shadow-sm"
+            >
+              {name}
+            </span>
+          </>
+        )}
       </motion.div>
     </motion.div>
   );
@@ -214,6 +290,21 @@ export function CursorOverlay({
     [scrollerRef],
   );
 
+  const visibleArea = useCallback((): Box | null => {
+    const board = scrollerRef.current;
+    const layer = overlay.current;
+    if (!board || !layer) return null;
+    const area = board.getBoundingClientRect();
+    const origin = layer.getBoundingClientRect();
+    return {
+      left: area.left - origin.left,
+      top: area.top - origin.top,
+      // Without the scroll bars.
+      width: board.clientWidth,
+      height: board.clientHeight,
+    };
+  }, [scrollerRef]);
+
   const register = useCallback((place: Place) => {
     places.current.add(place);
     return () => {
@@ -245,10 +336,16 @@ export function CursorOverlay({
   return (
     // Hidden from assistive technology: the avatars and the tags on cards
     // say who is here and what they are doing.
+    //
+    // The layer covers the whole board, to clip pointers to it, but is itself
+    // invisible; only the pointers on it are seen. A visible layer, even an
+    // empty one, counts as covering the board for accessibility checkers,
+    // which then cannot work out the contrast of anything under it.
     <div
       ref={overlay}
       aria-hidden
-      className="pointer-events-none absolute inset-0 z-30 overflow-hidden"
+      data-presence-layer
+      className="pointer-events-none invisible absolute inset-0 z-30 overflow-hidden"
     >
       {/* A pointer that leaves fades out where it was last seen. */}
       <AnimatePresence>
@@ -261,6 +358,7 @@ export function CursorOverlay({
                 color={other.user.color}
                 cursor={other.cursor}
                 locate={locate}
+                visibleArea={visibleArea}
                 register={register}
                 layout={layout}
               />

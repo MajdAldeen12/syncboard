@@ -1,33 +1,38 @@
 import type { SyncStatus } from "@syncboard/core/sync-status";
+import { AppHeader } from "./app-header";
+import { COLUMN_WIDTH } from "./layout";
 
 /** Shown while the board is being fetched for the first time. */
 export function BoardLoading() {
   return (
-    <div
-      role="status"
-      aria-busy="true"
-      data-board-state="loading"
-      className="flex min-h-0 flex-1 flex-col"
-    >
-      <p className="sr-only">Loading the board…</p>
-      <div className="mx-4 mt-4 h-7 w-40 rounded bg-zinc-200 motion-safe:animate-pulse dark:bg-zinc-800" />
-      <div aria-hidden className="flex items-start gap-3 p-4">
-        {[3, 2, 1].map((cards, index) => (
-          <div
-            key={index}
-            className="flex w-72 shrink-0 flex-col gap-2 rounded-xl bg-zinc-100 p-2 dark:bg-zinc-900"
-          >
-            <div className="h-7 w-24 rounded bg-zinc-200 motion-safe:animate-pulse dark:bg-zinc-800" />
-            {Array.from({ length: cards }, (_, card) => (
-              <div
-                key={card}
-                className="h-9 rounded-lg bg-zinc-200 motion-safe:animate-pulse dark:bg-zinc-800"
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
+    <>
+      <AppHeader />
+      <main
+        aria-busy="true"
+        data-board-state="loading"
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <p role="status" className="sr-only">
+          Loading the board…
+        </p>
+        <div aria-hidden className="flex items-start gap-3 p-4">
+          {[3, 2, 1].map((cards, index) => (
+            <div
+              key={index}
+              className={`flex ${COLUMN_WIDTH} shrink-0 flex-col gap-2 rounded-xl bg-zinc-100 p-2 dark:bg-zinc-900`}
+            >
+              <div className="h-7 w-24 rounded bg-zinc-200 motion-safe:animate-pulse dark:bg-zinc-800" />
+              {Array.from({ length: cards }, (_, card) => (
+                <div
+                  key={card}
+                  className="h-9 rounded-lg bg-zinc-200 motion-safe:animate-pulse dark:bg-zinc-800"
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </main>
+    </>
   );
 }
 
@@ -55,16 +60,20 @@ export function BoardUnavailable({ reason }: { reason: Reason }) {
   const { title, detail } = MESSAGE[reason];
 
   return (
-    <div
-      role="alert"
-      data-board-state="unavailable"
-      data-reason={reason}
-      className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center"
-    >
-      <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-      <p className="max-w-md text-sm text-zinc-600 dark:text-zinc-400">
-        {detail}
-      </p>
-    </div>
+    <>
+      <AppHeader />
+      <main
+        data-board-state="unavailable"
+        data-reason={reason}
+        className="flex flex-1 flex-col items-center justify-center p-8 text-center"
+      >
+        <div role="alert" className="flex flex-col items-center gap-2">
+          <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
+          <p className="max-w-md text-sm text-zinc-600 dark:text-zinc-400">
+            {detail}
+          </p>
+        </div>
+      </main>
+    </>
   );
 }

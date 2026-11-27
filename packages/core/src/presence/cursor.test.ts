@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeCursor, locateCursor, type Box } from "./index";
+import { describeCursor, locateCursor, pinToBox, type Box } from "./index";
 
 const ORIGIN = { x: 16, y: 80 };
 
@@ -131,5 +131,60 @@ describe("locateCursor", () => {
 
     expect(point?.x).toBeCloseTo(pointer.x, 0);
     expect(point?.y).toBeCloseTo(pointer.y, 0);
+  });
+});
+
+describe("pinToBox", () => {
+  // The visible part of the board, in the overlay's coordinates.
+  const board: Box = { left: 0, top: 50, width: 500, height: 400 };
+
+  it("leaves a point inside the box where it is", () => {
+    expect(pinToBox({ x: 120, y: 200 }, board)).toEqual({
+      point: { x: 120, y: 200 },
+      side: null,
+    });
+  });
+
+  it("counts the edges themselves as inside", () => {
+    expect(pinToBox({ x: 500, y: 450 }, board).side).toBeNull();
+    expect(pinToBox({ x: 0, y: 50 }, board).side).toBeNull();
+  });
+
+  it("pins a point off to the right to the right edge, at its height", () => {
+    expect(pinToBox({ x: 900, y: 200 }, board)).toEqual({
+      point: { x: 500, y: 200 },
+      side: "right",
+    });
+  });
+
+  it("pins a point off to the left to the left edge", () => {
+    expect(pinToBox({ x: -300, y: 120 }, board)).toEqual({
+      point: { x: 0, y: 120 },
+      side: "left",
+    });
+  });
+
+  it("pins a point above or below to that edge, at its distance across", () => {
+    expect(pinToBox({ x: 260, y: 10 }, board)).toEqual({
+      point: { x: 260, y: 50 },
+      side: "top",
+    });
+    expect(pinToBox({ x: 260, y: 900 }, board)).toEqual({
+      point: { x: 260, y: 450 },
+      side: "bottom",
+    });
+  });
+
+  it("names the side it is furthest beyond when it is off a corner", () => {
+    // Far to the right and a little below: the right edge, at the bottom.
+    expect(pinToBox({ x: 1200, y: 470 }, board)).toEqual({
+      point: { x: 500, y: 450 },
+      side: "right",
+    });
+    // Far below and a little to the left: the bottom edge, at the left.
+    expect(pinToBox({ x: -5, y: 1000 }, board)).toEqual({
+      point: { x: 0, y: 450 },
+      side: "bottom",
+    });
   });
 });

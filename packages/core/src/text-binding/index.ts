@@ -123,3 +123,26 @@ export function shiftIndex(index: number, splice: TextSplice): number {
   }
   return splice.index;
 }
+
+/**
+ * `edit`, made on a copy of the text that had not yet seen `others`, carried
+ * over so that it can be applied after them. `others` are in order, each
+ * applying to the text as the ones before it left it.
+ *
+ * Text that others inserted where `edit` inserts stays after it. Text that
+ * others removed from what `edit` removes is not removed twice. Text that
+ * others inserted inside what `edit` removes is removed with it: the edit
+ * replaced that whole stretch.
+ */
+export function rebaseSplice(
+  edit: TextSplice,
+  others: readonly TextSplice[],
+): TextSplice {
+  let start = edit.index;
+  let end = edit.index + edit.remove;
+  for (const other of others) {
+    start = shiftIndex(start, other);
+    end = Math.max(start, shiftIndex(end, other));
+  }
+  return { index: start, remove: end - start, insert: edit.insert };
+}

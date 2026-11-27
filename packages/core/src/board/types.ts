@@ -93,7 +93,12 @@ export interface BoardStore {
    * does not exist.
    */
   editCardDescription(cardId: string): TextSession | null;
-  deleteCard(cardId: string): void;
+  /**
+   * Deletes a card. Returns a function that puts it back exactly as it was
+   * (same id, column, place and text), for an "Undo"; it does something only
+   * the first time. Null if there was no such card.
+   */
+  deleteCard(cardId: string): (() => void) | null;
   /** Moves a card so that it ends up at `toIndex` in `toColumnId`. */
   moveCard(cardId: string, toColumnId: string, toIndex: number): void;
 }

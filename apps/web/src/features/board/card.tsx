@@ -7,9 +7,11 @@ import {
   type CardView,
 } from "@syncboard/core/board";
 import type { Activity } from "@syncboard/core/presence";
-import { memo, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { ActivityTag, activityOutline } from "@/features/presence/activity-tag";
-import { CloseIcon, DescriptionIcon, ExpandIcon, PencilIcon } from "./icons";
+import { CARD_HELP_ID } from "./drag-announcer";
+import { focusTargetAfterCard } from "./focus";
+import { DescriptionIcon, ExpandIcon, PencilIcon, TrashIcon } from "./icons";
 import { TextEditor, useFocusAfterEdit } from "./inline-text";
 import { LiftShadow } from "./lift-shadow";
 
@@ -23,7 +25,16 @@ interface CardProps {
   activity?: readonly Activity[];
   /** Opens the card on its own, with its description. */
   onOpen: (cardId: string) => void;
+  /** Deletes the card, with a chance to take it back. */
+  onDelete: (cardId: string) => void;
 }
+
+/**
+ * A tap shorter than this opens the card. dnd-kit starts a touch drag only
+ * after the finger has rested on a card for a quarter of a second, so a
+ * quick tap is never a drag.
+ */
+const TAP_MS = 400;
 
 const ACTION_CLASS =
   "flex size-6 items-center justify-center rounded text-zinc-500 outline-offset-1 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-blue-600 dark:text-zinc-400 dark:hover:bg-zinc-700";
@@ -35,6 +46,7 @@ export const Card = memo(function Card({
   store,
   activity,
   onOpen,
+  onDelete,
 }: CardProps) {
   const [editing, setEditing] = useState(false);
   // A title can be empty for a moment while someone else is retyping it.
@@ -42,6 +54,10 @@ export const Card = memo(function Card({
   const outline = activityOutline(activity);
   const [editButtonRef, requestFocus] =
     useFocusAfterEdit<HTMLButtonElement>(editing);
+
+  // How the last press on the card began: a tap with a finger or pen
+  // opens the card, since a touch screen has no hover to reveal its buttons.
+  const press = useRef<{ type: string; at: number } | null>(null);
 
   const { ref, isDragging } = useSortable({
     id: card.id,
@@ -65,8 +81,41 @@ export const Card = memo(function Card({
       // with the page. Cards must be reachable by keyboard from the start.
       tabIndex={0}
       aria-label={name}
+      // Read as "…, card" rather than "…, group", followed by how to move it.
+      aria-roledescription="card"
+      aria-describedby={CARD_HELP_ID}
       data-card-id={card.id}
       onDoubleClick={() => setEditing(true)}
+      onPointerDown={(event) => {
+        press.current = { type: event.pointerType, at: event.timeStamp };
+      }}
+      onClick={(event) => {
+        const tap = press.current;
+        press.current = null;
+        if (
+          editing ||
+          !tap ||
+          tap.type === "mouse" ||
+          event.timeStamp - tap.at > TAP_MS ||
+          (event.target as Element).closest("button, textarea, input")
+        ) {
+          return;
+        }
+        onOpen(card.id);
+      }}
+      onKeyDown={(event) => {
+        // Enter opens the card; Space picks it up. Keys pressed on the
+        // buttons inside, or while the card is held, are not for this.
+        if (
+          event.key === "Enter" &&
+          event.target === event.currentTarget &&
+          !isDragging &&
+          !editing
+        ) {
+          event.preventDefault();
+          onOpen(card.id);
+        }
+      }}
       style={outline.style}
       className={`group/card relative shrink-0 rounded-lg bg-white px-2 py-1.5 text-sm shadow-sm outline-offset-1 focus-visible:outline-2 focus-visible:outline-blue-600 dark:bg-zinc-800 ${
         outline.className || "ring-1 ring-black/5 dark:ring-white/10"
@@ -94,15 +143,25 @@ export const Card = memo(function Card({
       ) : (
         <>
           <p className="px-1 py-0.5 wrap-break-word">
-            {card.title || <span className="text-zinc-400">Untitled</span>}
+            {card.title || (
+              <span className="text-zinc-600 italic dark:text-zinc-400">
+                Untitled
+              </span>
+            )}
           </p>
           {card.description && (
-            <span className="block px-1 pb-0.5 text-zinc-400">
+            <span className="block px-1 pb-0.5 text-zinc-500 dark:text-zinc-400">
               <DescriptionIcon />
             </span>
           )}
 
-          <div className="absolute top-1 right-1 flex gap-0.5 rounded-md bg-white opacity-0 shadow-sm ring-1 ring-black/5 group-hover/card:opacity-100 focus-within:opacity-100 dark:bg-zinc-800 dark:ring-white/10">
+          {/*
+            Shown on hover and while a button in it has focus. Hidden, it
+            cannot be pressed either: a touch screen has no hover, and an
+            invisible Delete button under a finger is a trap. There a tap
+            opens the card, and the dialog has the same actions.
+          */}
+          <div className="pointer-events-none absolute top-1 right-1 flex gap-0.5 rounded-md bg-white opacity-0 shadow-sm ring-1 ring-black/5 group-hover/card:pointer-events-auto group-hover/card:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100 dark:bg-zinc-800 dark:ring-white/10">
             <button
               type="button"
               aria-label={`Open card: ${name}`}
@@ -123,10 +182,17 @@ export const Card = memo(function Card({
             <button
               type="button"
               aria-label={`Delete card: ${name}`}
-              onClick={() => store.deleteCard(card.id)}
+              onClick={(event) => {
+                // Focus moves on to a neighbour first: the button it is on
+                // is about to disappear with the card.
+                const self =
+                  event.currentTarget.closest<HTMLElement>("[data-card-id]");
+                if (self) focusTargetAfterCard(self)?.focus();
+                onDelete(card.id);
+              }}
               className={`${ACTION_CLASS} hover:text-red-600`}
             >
-              <CloseIcon />
+              <TrashIcon />
             </button>
           </div>
         </>

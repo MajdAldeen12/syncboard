@@ -15,6 +15,7 @@ import { orderAtIndex } from "../ordering/index";
 import type { TextSession, TextSplice } from "../text-binding/index";
 import * as write from "./mutations";
 import { normalizeBoard } from "./normalize";
+import { boardRoots } from "./schema";
 import { readBoardState } from "./state";
 
 export interface YjsBoardStoreOptions {
@@ -260,7 +261,28 @@ export function createYjsBoardStore(
     },
 
     deleteCard(cardId) {
+      const stored = Object.hasOwn(state.cards, cardId)
+        ? state.cards[cardId]
+        : undefined;
+      const entry = boardRoots(doc).cards.get(cardId);
+      if (!stored || !(entry instanceof Y.Map)) return null;
+      // Who made it and when are kept with the card but not in its record.
+      const createdBy = entry.get("createdBy");
+      const createdAt = entry.get("createdAt");
+
       write.deleteCard(doc, cardId);
+      // Putting it back writes a new card with the same id and contents. It
+      // is not an undo of the deletion: nobody else can have changed a card
+      // that was gone, so there is nothing of theirs to keep.
+      return () => {
+        if (boardRoots(doc).cards.has(cardId)) return;
+        write.insertCard(doc, {
+          id: cardId,
+          ...stored,
+          createdBy: typeof createdBy === "string" ? createdBy : userId,
+          createdAt: typeof createdAt === "number" ? createdAt : now(),
+        });
+      };
     },
 
     moveCard(cardId, toColumnId, toIndex) {

@@ -266,7 +266,10 @@ for (const reducedMotion of ["no-preference", "reduce"] as const) {
     test(`a page reached from the home page ${what}`, async ({ page }) => {
       await page.goto("/");
       await startSampling(page, "[data-page-enter]");
-      await page.getByRole("link", { name: "Open the demo board" }).click();
+      await page
+        .getByRole("link", { name: "Open the demo board" })
+        .first()
+        .click();
       await expect(page.locator("[data-page-enter]")).toBeVisible();
       await page.waitForTimeout(500);
       const moved = await stopSampling(page);

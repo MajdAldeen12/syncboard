@@ -1,5 +1,6 @@
-export { describeCursor, locateCursor } from "./cursor";
-export type { Box, CursorTarget, Point } from "./cursor";
+export { describeCursor, locateCursor, pinToBox } from "./cursor";
+export { describeActivity, describePeopleChange } from "./describe";
+export type { Box, CursorTarget, Point, Side } from "./cursor";
 export { PRESENCE_COLORS, createGuest, initials } from "./guest";
 export { parsePresence, parseUser } from "./parse";
 export { ownChanges } from "./relay";

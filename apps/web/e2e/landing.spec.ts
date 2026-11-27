@@ -80,7 +80,7 @@ test.describe("the landing page", () => {
       page.getByRole("heading", { level: 1, name: HEADLINE }),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Open the demo board" }),
+      page.getByRole("link", { name: "Open the demo board" }).first(),
     ).toBeVisible();
     for (const title of TOUR) {
       await expect(page.getByRole("heading", { name: title })).toBeAttached();
@@ -110,7 +110,10 @@ test.describe("the landing page", () => {
 
   test("leads to the demo board", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("link", { name: "Open the demo board" }).click();
+    await page
+      .getByRole("link", { name: "Open the demo board" })
+      .first()
+      .click();
 
     await expect(page).toHaveURL(/\/demo$/);
     await expect(page.locator(CARD).first()).toBeVisible({ timeout: 25_000 });

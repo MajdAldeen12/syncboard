@@ -139,7 +139,7 @@ export default function HomePage() {
               </p>
               <p>
                 <Link href="/demo" className={TEXT_LINK}>
-                  Go to the demo board
+                  Open the demo board
                 </Link>
               </p>
             </TourStep>
@@ -170,6 +170,29 @@ export default function HomePage() {
                 </div>
               ))}
             </dl>
+          </div>
+        </section>
+        <section
+          aria-labelledby="try-title"
+          className="border-t border-zinc-200 dark:border-zinc-800"
+        >
+          <div className="mx-auto flex w-full max-w-6xl flex-col items-start gap-8 px-4 py-20 sm:px-6 lg:flex-row lg:items-end lg:justify-between lg:px-8 lg:py-24">
+            <div>
+              <h2
+                id="try-title"
+                className="font-display text-3xl leading-tight font-bold tracking-[-0.02em] text-balance sm:text-4xl"
+              >
+                See it for yourself
+              </h2>
+              <p className="mt-4 max-w-xl text-lg/relaxed text-zinc-600 dark:text-zinc-400">
+                Open the demo board in two browser windows and move a card in
+                one. It moves in the other, with your pointer and your name on
+                it.
+              </p>
+            </div>
+            <Link href="/demo" className={`shrink-0 ${PRIMARY}`}>
+              Open the demo board
+            </Link>
           </div>
         </section>
       </main>

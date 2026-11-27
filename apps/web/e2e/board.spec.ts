@@ -186,6 +186,8 @@ test.describe("editing", () => {
   const editName = { name: `Edit card: ${FIRST_CARD}`, exact: true };
 
   test("renames a card with the edit button", async ({ page }) => {
+    // The card's buttons show, and can be pressed, while it is pointed at.
+    await card(page, FIRST_CARD).hover();
     await page.getByRole("button", editName).click();
     const field = page.getByRole("textbox", editName);
     await field.fill("Renamed card");
@@ -213,6 +215,8 @@ test.describe("editing", () => {
   });
 
   test("Escape discards an edit", async ({ page }) => {
+    // The card's buttons show, and can be pressed, while it is pointed at.
+    await card(page, FIRST_CARD).hover();
     await page.getByRole("button", editName).click();
     const field = page.getByRole("textbox", editName);
     await field.fill("Should not be saved");

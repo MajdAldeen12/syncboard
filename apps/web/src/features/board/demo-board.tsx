@@ -3,6 +3,8 @@
 import type { SyncStatus } from "@syncboard/core/sync-status";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { AvatarStack } from "@/features/presence/avatar-stack";
+import { PeopleAnnouncer } from "@/features/presence/people-announcer";
+import { SelfHint } from "@/features/presence/self-hint";
 import { createBoardSession } from "@/lib/board-session";
 import { loadGuest } from "@/lib/guest-identity";
 import { SYNC_HOST, boardIdFromSearch } from "@/lib/sync-config";
@@ -45,7 +47,9 @@ export function DemoBoard() {
       presence={session.presence}
       headerEnd={
         <div className="flex items-center gap-3">
+          <SelfHint presence={session.presence} />
           <AvatarStack presence={session.presence} />
+          <PeopleAnnouncer presence={session.presence} />
           <SyncIndicator status={status} />
         </div>
       }
