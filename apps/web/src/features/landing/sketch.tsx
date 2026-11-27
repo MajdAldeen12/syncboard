@@ -184,23 +184,23 @@ export function SketchTag({
   visible?: boolean;
 }) {
   const text = `${person.name} ${doing === "editing" ? "is editing" : "is moving this"}`;
-  // As large as fits: from the card's left edge to the gap before the next
-  // column.
-  const width = labelWidth(text, 7.5);
+  // As large as fits inside the card's column, the longest tag ("Quiet
+  // Otter is moving this") included.
+  const width = labelWidth(text, 7);
   return (
     <g data-sketch={id} opacity={visible ? 1 : 0}>
       <rect
         x={2}
-        y={-7}
+        y={-6.5}
         width={width}
-        height={12.5}
+        height={12}
         rx={2.5}
         fill={person.color}
       />
       <text
         x={2 + width / 2}
-        y={2.1}
-        fontSize={7.5}
+        y={2}
+        fontSize={7}
         fontWeight={500}
         textAnchor="middle"
         fill="white"

@@ -4,14 +4,19 @@ Real-time collaborative kanban web app. Free public tool and portfolio piece: vi
 
 **Keep this file current.** Update "Resume here" and "Current status" at the end of every working session and whenever a milestone or decision changes. Work may continue from a different Claude account, so anything not written here or in `docs/` is lost.
 
-## Resume here (last updated 2026-11-24)
+## Resume here (last updated 2026-11-27)
 
-- **State:** `main` holds milestones 0 to 2, M3 stage 1, M4, M6 and M7. M7 (the GSAP landing page) was merged through pull request 6 on 2026-11-24, after both CI jobs passed on it.
-- **Next:** M8 (design pass, accessibility, performance) needs no accounts. Its done checks are in `docs/PLAN.md`; the "Open items" marked M8 below are its starting list. Cut `m8-design-pass` from an up-to-date `main`. M3 stage 2 (Supabase persistence) and M5 (sign-in, sharing, permissions) cannot start until the owner has a development Supabase project.
+- **State:** `main` holds milestones 0 to 2, M3 stage 1, M4, M6 and M7 (M7 through pull request 6, 2026-11-24). **M8 (design pass, accessibility, performance) is done on branch `m8-design-pass`**, committed locally, not pushed: every M8 done check is met except sharing in the keyboard walkthrough, which waits for M5 (`docs/decisions/0006-accessibility-and-performance.md`).
+- **Next:** push `m8-design-pass` and open its pull request once the owner agrees, then squash-merge it as "feat: design pass, accessibility and performance (M8)". After that every milestone needs something from the owner: M3 stage 2 and M5 need a development Supabase project, M9 needs hosting accounts, and the sync server must not be deployed before M5.
 - **Waiting on the owner:**
-  - A look at `/` (the landing page) in a real browser, phone and desktop: the motion is judged by eye, which tests can only partly do.
+  - OK to push `m8-design-pass` and open its pull request.
+  - A look at `/` and `/demo` in a real browser, phone and desktop. Motion and touch are judged by eye, which tests can only partly do. New in M8 and worth a look:
+    - On a phone, the hero waits until it is scrolled into view, and a tap opens a card.
+    - Deleting a card shows "Card deleted · Undo".
+    - The single header bar.
+    - Someone else's pointer pinned at the board's edge when it is out of sight.
   - A development Supabase project, needed for M3 stage 2 and M5.
-  - A look at `/demo` as two people: two different browsers, or one normal and one private window. Two tabs of the same browser are the same guest, so they show one avatar (and each other's pointer). `pnpm dev` starts the sync server too. M2, M3 stage 1, M4 and M6 were verified by automated tests; M6 is about how things move, which tests can only partly judge.
+  - A look at `/demo` as two people: two different browsers, or one normal and one private window. Two tabs of the same browser are the same guest, so they show one avatar (and each other's pointer). `pnpm dev` starts the sync server too.
   - OK to delete the merged branches `m1-static-board`, `m2-yjs-board`, `m3-sync-server`, `m4-presence`, `m6-motion-polish` and `m7-landing-page` (local and on GitHub), and the leftover `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`.
 - **First time on a machine:** `pnpm install`, then `pnpm --filter @syncboard/web exec playwright install chromium`. Run the full gate (see "Working a milestone") to confirm a clean start before changing anything.
 
@@ -42,7 +47,7 @@ Multiple people drag cards, edit text and see each other's cursors and presence.
 - `apps/web/scripts/check-animation-boundary.mjs`: run by `pnpm lint`; fails if the ESLint rule keeping Motion and GSAP apart stops rejecting or allowing what it should
 - `packages/core`: pure TS. Exists now: `board` (store interface, in-memory store, seed, `store-contract.ts` = the tests every store must pass), `board-doc` (Yjs schema, mutations, state reader, `normalizeBoard`, Yjs store, `testing.ts` = test helpers), `ordering`, `permissions`, `sync-status` (close codes, what to show about the connection, stalled-handshake detector), `text-binding` (text diff, caret shift, `rebaseSplice`, `TextSession` type), `presence` (the shape of one client's presence, `parsePresence`, `readPresence`, cursor geometry and `pinToBox`, the throttle, `createPresenceStore`, guests, `describeActivity` and `describePeopleChange` for the words shown and announced). Planned: `ticket`
 - `packages/db`: Drizzle schema, client, queries (M3 stage 2, not created yet)
-- `docs/PLAN.md`: full plan with milestones and "done" checks. `docs/decisions/`: decision records (0001 hibernation, 0002 presence against hibernation, 0003 cursor coordinates, 0004 drag performance on 200 cards, 0005 the landing page's animation and Lighthouse score, 0006 accessibility checks, the design pass, and 500 cards). `.impeccable/critique/`: the Impeccable design critiques of M8 (one per page), which `/impeccable polish` reads
+- `docs/PLAN.md`: full plan with milestones and "done" checks. `docs/decisions/`: decision records (0001 hibernation, 0002 presence against hibernation, 0003 cursor coordinates, 0004 drag performance on 200 cards, 0005 the landing page's animation and Lighthouse score, 0006 accessibility checks, the design pass, and 500 cards, with the M8 design critique's scores and findings). `.impeccable/` (gitignored): the Impeccable design tool's local state, including its critique snapshots on the machine that ran them
 
 ## Architecture in brief
 
@@ -79,7 +84,8 @@ Run from the repo root. Requires Node 22.12+ and pnpm 12 (`packageManager` pins 
 - `pnpm e2e`: Playwright browser tests in `apps/web/e2e`. Starts its own sync server on `127.0.0.1:8788` and builds and serves the web app on `127.0.0.1:3100`, so it can run while `pnpm dev` is up. One test at a time, about 3 minutes
 - `pnpm format` / `pnpm format:check`: Prettier
 - One package only: `pnpm --filter @syncboard/core test`
-- The drag performance measurement: `PERF=1 pnpm --filter @syncboard/web exec playwright test e2e/perf.spec.ts`. Writes a Chrome trace to `apps/web/test-results/` (see `docs/decisions/0004-drag-performance.md`)
+- The drag performance measurements: `PERF=1 pnpm --filter @syncboard/web exec playwright test e2e/perf.spec.ts` (four runs: 200 and 500 cards, CPU 1x and 4x; `-g "500 cards"` picks some). Prints a `PERF` line per run and writes a Chrome trace per run to `apps/web/test-results/`; with `PERF_PROFILE=1` also a `.cpuprofile` of the carried part of the drag. Measure on mains power: on battery this laptop is far slower (the four runs took 5.3 minutes instead of 1.2, with every number worse). See `docs/decisions/0004-drag-performance.md` and `0006-accessibility-and-performance.md`
+- The accessibility score: as below, with `--only-categories=accessibility`, for `/` and for `/demo` (the `sync` preview must be running for the board to load)
 - The landing page's Lighthouse score: `pnpm build`, start the `web-prod` preview (`next start` on port 3200), then `npx --yes lighthouse@13.6.0 http://localhost:3200/ --only-categories=performance` with `CHROME_PATH` set to Playwright's Chromium (`node -e "console.log(require('@playwright/test').chromium.executablePath())"` in `apps/web`). Mobile is Lighthouse's default. The Chrome DevTools MCP's `lighthouse_audit` leaves performance out. See `docs/decisions/0005-landing-page.md`
 
 CI (`.github/workflows/ci.yml`) has two jobs on pushes to `main` and on pull requests: `check` (format, lint, typecheck, unit tests, build) and `e2e` (the browser tests, with traces uploaded on failure).
@@ -126,6 +132,10 @@ Stage 1 is done (see "Sync server: how it works and why"). The M3 done checks ar
 - `python3` on this machine is the Microsoft Store stub and hangs waiting for input. Write throwaway scripts in Node.
 - A second look at a failing browser test is cheap: `apps/web/test-results/<test>/error-context.md` holds the page as it was, as an accessibility tree.
 - A throwaway Playwright script outside the repo loads Playwright with `createRequire("E:/SyncBoard/apps/web/package.json")`; a plain `import` cannot find it from the scratchpad.
+- **Playwright's own trace** (`trace: "retain-on-failure"` in the config) copies the whole page into a snapshot on every action, in the page's main thread. On a 500-card board that was two thirds of all the work measured during a mouse drag, so `perf.spec.ts` switches it off. Remember it when timing anything in a test.
+- **Playwright's fake clock** (`page.clock`) also controls animation frames: a Motion exit animation never finishes under it, and `AnimatePresence` keeps the element. Wait in real time for anything that animates out.
+- **This laptop on battery** (Balanced plan) ran the same drag measurements far more slowly than on mains power (2026-11-27): 5.3 minutes instead of 1.2 for the four runs, and 8 instead of 52 frames a second for 500 cards at 4x. Check `Get-CimInstance Win32_Battery` (BatteryStatus 2 is mains) before measuring.
+- **Edit scripts written through a Bash heredoc** can turn a `\b` meant for a regular expression into a backspace character. Write scripts with the file tool, or check the result with `cat -A`.
 - A rule appended to the end of `apps/web/src/app/globals.css` (an attribute selector, `[data-sketch="a-c2"] { opacity: 0 }`) reached neither the dev server's nor the production build's CSS (2026-11-24); a Tailwind class in the markup did. Cause not found. If a CSS change seems to do nothing, search the built CSS in `.next*/static/chunks/*.css` first.
 
 ## Drag and drop: how it works and why
@@ -222,6 +232,7 @@ Read this before touching `layout-animator.tsx`, `lift-shadow.tsx`, `modal-dialo
 - **Pointers**: position on the outer element (motion values), appearance on the inner `data-presence-cursor-body`. **Avatars**: `motion.li` in `AnimatePresence mode="popLayout"`, with `layout` only without reduced motion.
 - **Starting a drag blurs a focused text field** elsewhere on the board. Otherwise the browser scrolls back to it as the drag begins and the item lands several places off (the old column-drag bug, now tested).
 - **The undo toast** (`undo-toast.tsx`) rises in and fades out with Motion, fade only with reduced motion. It stays 8 s, paused while pointed at or focused, and goes on Escape. Playwright's fake clock also holds back animation frames, so its test waits in real time.
+- **Testing motion:** sample in the page under test, every frame, after frames have started (see Environment notes). The new tests passed first time, so each rule was broken on purpose to see a test fail: animation always off, reduced motion ignored, focus not handed back, the dialog opened without `showModal`. The column-drag test failed three times out of three before its fix. Do the same when adding a rule.
 
 ## Accessibility: how it works and why
 
@@ -236,7 +247,7 @@ Read this before touching announcements, focus, colours or the card's buttons. T
 - **Touch screens have no hover.** A card's buttons take no pointer events while hidden (they were invisible but tappable: a tap at the corner deleted the card for everyone). A tap on a card opens it; the dialog has "Delete card".
 - **The keyboard-only walkthrough** (`keyboard.spec.ts`) adds, moves, renames, opens, describes and deletes a card by Tab and keys alone. Sharing joins it in M5.
 - **Not done: listening with a real screen reader.** The words were checked in the accessibility tree and in tests only.
-- **Testing motion:** sample in the page under test, every frame, after frames have started (see Environment notes). The new tests passed first time, so each rule was broken on purpose to see a test fail: animation always off, reduced motion ignored, focus not handed back, the dialog opened without `showModal`. The column-drag test failed three times out of three before its fix. Do the same when adding a rule.
+- **Testing:** each M8 rule was broken on purpose in one build and its test failed. The rules broken: announcements with ids, no focus move after a delete, remote text written mid-composition, a visible pointer layer, no edge marker, the board prefetching the home page, tappable hidden buttons, Enter not opening a card, Undo not restoring, joins never announced. The break script (`m8-break-rules.cjs`, run from `apps/web` with `apply` and then `restore`) is in the shared session-notes folder, not the repo. Do the same when adding a rule.
 
 ## Landing page: how it works and why
 
@@ -258,7 +269,7 @@ Read this before touching `apps/web/src/app/(marketing)` or `apps/web/src/featur
 
 ## Current status
 
-- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project. M6 was done on branch `m6-motion-polish` (2026-11-16 and 17), also ahead of M3 stage 2, and merged through pull request 5 (2026-11-17). M7 was done on branch `m7-landing-page` (2026-11-17 to 24) and merged through pull request 6 (2026-11-24).
+- Phase: M0, M1 and M2 are merged to `main` (M1 through pull request 1, M2 through pull request 2, both 2026-11-13). M3 stage 1 is merged through pull request 3 (2026-11-14). M3 stage 2 has not started. M4 is merged through pull request 4 (2026-11-16), ahead of M3 stage 2, which is waiting for a Supabase project. M6 was done on branch `m6-motion-polish` (2026-11-16 and 17), also ahead of M3 stage 2, and merged through pull request 5 (2026-11-17). M7 was done on branch `m7-landing-page` (2026-11-17 to 24) and merged through pull request 6 (2026-11-24). M8 was done on branch `m8-design-pass` (2026-11-26 and 27), committed locally and not yet pushed.
 - Repo: https://github.com/MajdAldeen12/syncboard (public, `origin`).
 - The board lives at `/demo` in a Yjs document and syncs through a sync server run locally with `wrangler dev`. Each browser keeps its own copy in IndexedDB, so the board reopens without the server and edits made while disconnected merge on reconnect. The server keeps the document in Durable Object storage. The board also shows who else is on it, their pointers, and who is editing or moving which card; everyone is a guest with a made-up name. Cards can be opened on their own to edit a description. The home page `/` is a landing page with GSAP animation and a link to the demo board. Nothing is deployed, and there is no database yet.
 - [x] M0 Foundations (repo, CI, tooling)
@@ -271,14 +282,14 @@ Read this before touching `apps/web/src/app/(marketing)` or `apps/web/src/featur
 - [ ] M5 Auth, sharing, permissions, demo board
 - [x] M6 Motion polish in the app (pull request 5): cards and columns slide into new places, lift and set-down shadows, a card dialog with a live description, a confirm dialog for deleting a column, avatar and pointer entrances, a page entrance, reduced motion throughout, the column-drag bug fixed. 375 core and 53 sync unit tests, 65 Playwright tests (the 46 earlier ones, 19 new) plus the skipped measurement. 60 frames a second dragging on 200 cards.
 - [x] M7 GSAP landing page (pull request 6): a hero of two people's screens showing one board, a four-step feature tour beside a sticky picture scrubbed by ScrollTrigger, "How it is built", reduced motion and no-JavaScript versions that show complete pictures. Mobile Lighthouse performance 97 to 99, no layout shift. 375 core and 53 sync unit tests (unchanged), 71 Playwright tests (the 65 earlier ones, 6 new) plus the skipped measurement; the 6 new ones passed 5 times in a row.
-- [ ] M8 Design pass, accessibility, performance
+- [x] M8 Design pass, accessibility, performance (branch `m8-design-pass`, not yet merged): axe checks in Playwright with no violations, Lighthouse accessibility 100 on both pages, drag announcements in titles, focus management, a keyboard-only walkthrough (sharing deferred to M5), input-method-safe editing, join and leave announcements, an edge marker for pointers out of sight, an Impeccable design critique and its P0 to P2 fixes (touch-safe card actions, undo for a deleted card, one header bar, the phone hero), a bundle check, and drag measurements on 500 cards (59.7 fps, key presses within 32 ms). 410 core and 55 sync unit tests, 108 Playwright tests (the 71 earlier ones, 37 new) plus 4 skipped measurements. `docs/decisions/0006`.
 - [ ] M9 Demo GIF, README, deploy
 
 ## Open items
 
 - CI: the `e2e` job passes on GitHub's Linux runners with one worker (first run was pull request 3). Still to try: more than one worker there (`workers` in `apps/web/playwright.config.ts`); the stall that forces one worker may be specific to the Windows machine.
 - M5: the landing page says that sign-in, sharing and boards of one's own are still being built (footer) and that the demo needs no account. Update both when M5 lands.
-- M8: the landing page was checked by eye in light and dark at phone and desktop widths, but has had no design critique yet. Its pictures are `aria-hidden` (tour) or one `role="img"` label per screen (hero); review the wording with a screen reader.
+- Screen reader review, before the public launch (M9): listen to the board and the landing page with NVDA or VoiceOver. M8 checked the words in the accessibility tree and in tests only: drag announcements, card descriptions, the "Card deleted" toast, people joining, the hero's two `role="img"` labels and the tour's `aria-hidden` picture.
 - M9: repeat the landing page's Lighthouse run on the deployed site and on a real phone (`docs/decisions/0005`). Add a social preview image and Open Graph tags.
 - M3 stage 2: the M3 done check "restarting the sync server restores the board from Supabase" is open. Stage 1 covers the equivalent for Durable Object storage: a room that everyone left is dropped from memory and serves what was saved.
 - M5: `DOC_GENERATION` is a constant 1 in `board-session.ts`. Resetting the demo board needs the server to tell the browser the current generation, and the browser to drop a saved copy of an older one.
@@ -292,23 +303,21 @@ Read this before touching `apps/web/src/app/(marketing)` or `apps/web/src/featur
 - M5: add a test that a read-only (viewer) connection's presence is relayed. The room never asks `isReadOnly` for presence, but there is no viewer to test with yet.
 - M5: the server does not limit how often a connection sends presence; the 15 a second is the browser's own restraint. Add a per-connection rate limit with the other demo caps.
 - M5 or M9, when the sync server is first deployed: repeat the scenarios of `docs/decisions/0002` on Cloudflare, in particular how quickly a client that vanishes without closing (network lost, lid shut) is reported. Until its close is reported that person stays on screen, because nothing times out.
-- M8: a pointer outside the visible part of the board is simply not visible; consider a marker at the edge.
-- M8 performance: on a 200-card board, picking a card up takes one 29 to 49 ms task and each column the card crosses into about 22 ms, so a frame is dropped at those moments (`docs/decisions/0004`). Both predate M6. Measured only on a fast laptop; repeat with CPU throttling.
-- Undo and redo of one's own changes (`Y.UndoManager`) was the M6 stretch goal and is not done.
-- A card is opened only from its "Open card" button: Enter and Space on a card pick it up. Consider a key for opening.
+- Performance at 4x CPU slowdown (a mid-range phone) on 200 and 500 cards is poor: see `docs/decisions/0006` for the numbers. Most of the cost is dnd-kit's own (an IntersectionObserver pair per droppable, compositing as the held card moves), not React. The next steps would be rendering only the cards in view (virtualising, which dnd-kit's sortable lists make hard) or fewer droppables during a drag.
+- Undo and redo of one's own changes in general (`Y.UndoManager`) was the M6 stretch goal and is not done. M8 added undo for deleting a card only.
 - The layout animation measures every card on every board render, remote keystrokes included. Cheap at 200 cards; watch it on bigger boards.
-- M8: people joining and leaving is not announced to screen readers (the avatar list is labelled, the pointers are hidden from assistive technology). Decide whether a polite live region is wanted. More than five people collapse into "+N".
-- M8: touch devices report no pointer. Two people editing one card show "Ana and 1 more"; check the wording.
+- Touch devices report no pointer, so a phone user shows an avatar but no pointer to others. More than five people collapse into "+N" in the avatar row.
 - `y-partyserver` upgrade: `board-session.ts` relies on the provider's `_awarenessUpdateHandler`, and `BoardRoom` bypasses the server's awareness handling. Re-run `presence.spec.ts` and re-read both when the version changes. Worth reporting upstream: awareness states are lost on wake-up, and the provider echoes received states.
 - M5: data from other clients is only shape-checked. A malformed `order` key (not a valid fractional index) passes `readBoardState` and makes `orderAtIndex` throw on the next move beside it. Validate keys and ids when reading, before the public demo opens.
 - M5: title and description length limits apply to what one client writes. Two people adding text at once can leave a title longer than `MAX_TITLE_LENGTH`; the server only limits total document size.
 - M5: `createdBy` on new cards is the string "anonymous" until there are users (`userId` option of `createYjsBoardStore`).
-- M8: text typed by someone else that arrives while an input method is composing (Chinese, Japanese, Korean keyboards) replaces the field's value and may interrupt the composition. Hold remote edits until `compositionend`.
-- M8: a card or column whose title is empty (possible for a moment while someone retypes it, or after two overlapping deletions) is shown and announced as "Untitled". Check the wording and contrast.
+- A card or column whose title is empty (possible for a moment while someone retypes it, or after two overlapping deletions) is shown as an italic "Untitled" (7:1 contrast since M8) and announced as "Untitled card" or "Untitled column". Kept.
 - Cards whose column was deleted are hidden if the board has no column at all, and reappear in the first column that is added. Rare; decide whether to delete them instead.
-- M8: drag announcements read out raw ids ("seed-column-1-card-1"); configure dnd-kit's Accessibility plugin to use card and column titles.
-- M8: cards are a `role="group"` in a plain container, not list items. Review with a screen reader.
 - ESLint 9 is marked deprecated on npm; it is what create-next-app 16.4.6 installs. Move to ESLint 10 when `eslint-config-next` is confirmed to work with it.
+- From the M8 design critique, left for later by the owner's choice (`docs/decisions/0006`): the brand (the guest colours as an accent, the display wordmark in the app), a "Replay" for the landing page's hero, a step indicator beside the tour's picture.
+- Phones: columns do not snap into place when the board is scrolled sideways. `scroll-snap` was not tried because dnd-kit scrolls the board itself while an item is held near an edge.
+- The undo toast offers back only the last card deleted; deleting another replaces the offer. Deleting a column still asks first, with no undo.
+- The landing page's "Open the demo board" prefetches the board's code, Yjs included (about 450 KB uncompressed), once the page has loaded. Likely the next click, so kept; revisit if the landing page's performance score drops.
 - Free-tier Supabase pauses after about a week of low activity: keep-alive cron + README note (M9)
 - Hosting accounts (Cloudflare, Supabase, Vercel) and domain not yet confirmed
 - `pnpm-workspace.yaml` has a leftover `minimumReleaseAgeExclude: prettier@3.10.1` entry added by pnpm; prettier is now pinned to 3.9.10, so the entry can be deleted once the owner agrees
@@ -362,3 +371,16 @@ Read this before touching `apps/web/src/app/(marketing)` or `apps/web/src/featur
 - The landing page's HTML is the complete picture (M7): the hero's starting scene, the tour's final scene. Reduced motion and no JavaScript show it as is.
 - Headings on the landing page use Schibsted Grotesk (`font-display`), loaded with `next/font` on that page only (M7). The app keeps Geist.
 - GSAP kept off the board is checked at run time with `window.gsapVersions` in a browser test (M7), chosen over scanning the build output, which depends on how Next.js splits chunks.
+- Accessibility is checked with axe in Playwright (`@axe-core/playwright` 4.14.0, M8): WCAG 2.0 to 2.2 A and AA plus best practices, failing on serious and critical issues and on text axe could not check because something covers it. `docs/decisions/0006-accessibility-and-performance.md`.
+- dnd-kit's Accessibility plugin is replaced by the board's own announcer and instructions (M8): titles and positions instead of internal ids, no deprecated `aria-grabbed`, no `aria-pressed` on column handles. `@dnd-kit/dom` became a direct dependency of the web app for it.
+- Space picks a card up; Enter opens it (M8). dnd-kit's default also picked up on Enter.
+- Joins and leaves are announced in a polite live region (M8); the people already there when a tab joins are not.
+- Remote edits wait while an input method is composing (M8), and the composed word is rebased over them on `compositionend`.
+- A pointer out of sight is drawn at the nearest edge of the board (M8).
+- Deleting a card offers an undo for 8 seconds (M8, the owner's choice over a confirm dialog). `BoardStore.deleteCard` returns a function that re-inserts the card as it was; not `Y.UndoManager`.
+- One header bar for the app (M8): wordmark, board name, "You are …", avatars and sync status. The `(app)` layout no longer draws a bar of its own.
+- Columns are 16rem on every screen (M8), not a width that follows the window: a pointer over the bare board is placed in pixels from the board's corner (0003).
+- On touch screens a tap opens a card (M8); the hidden hover toolbar takes no pointer events.
+- The board does not prefetch the home page (M8): it would download GSAP for a page few people go back to. The landing page still prefetches the board.
+- The M8 design pass kept the brand as it is (the owner's choice): no new colours, and the display font stays on the landing page only.
+- On a narrow screen the landing page's hero starts when the whole picture is in view (M8); on a wide one, 0.6 s after load as before.

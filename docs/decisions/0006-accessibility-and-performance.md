@@ -38,15 +38,15 @@ Each check needed a decision about what exactly to measure, and some needed chan
 
 axe skips text it considers too short to judge. Single-digit card counts are an example. It also skips icons. These were worked out from the colours:
 
-| What | Was | Ratio | Now | Ratio |
-| --- | --- | --- | --- | --- |
-| Card count (light, on zinc-100) | zinc-500 | 4.4:1 | zinc-600 | 7.1:1 |
-| Card count (dark, on zinc-900) | zinc-500 | 3.7:1 | zinc-400 | 6.7:1 |
-| Grip and trash icons (light) | zinc-400 | 2.4:1 | zinc-500 | 4.3:1 |
-| Description icon on a card (light) | zinc-400 | 2.6:1 | zinc-500 | 4.8:1 |
-| "Untitled" placeholder (light, on a column) | zinc-400 | 2.4:1 | zinc-600 italic | 7.1:1 |
-| "In column" line in the card dialog (dark) | zinc-500 | 3.7:1 | zinc-400 | 6.7:1 |
-| Input placeholders | browser default (about 3.5:1) | | zinc-500 / zinc-400 | 4.5:1 or more |
+| What                                        | Was                           | Ratio | Now                 | Ratio         |
+| ------------------------------------------- | ----------------------------- | ----- | ------------------- | ------------- |
+| Card count (light, on zinc-100)             | zinc-500                      | 4.4:1 | zinc-600            | 7.1:1         |
+| Card count (dark, on zinc-900)              | zinc-500                      | 3.7:1 | zinc-400            | 6.7:1         |
+| Grip and trash icons (light)                | zinc-400                      | 2.4:1 | zinc-500            | 4.3:1         |
+| Description icon on a card (light)          | zinc-400                      | 2.6:1 | zinc-500            | 4.8:1         |
+| "Untitled" placeholder (light, on a column) | zinc-400                      | 2.4:1 | zinc-600 italic     | 7.1:1         |
+| "In column" line in the card dialog (dark)  | zinc-500                      | 3.7:1 | zinc-400            | 6.7:1         |
+| Input placeholders                          | browser default (about 3.5:1) |       | zinc-500 / zinc-400 | 4.5:1 or more |
 
 Icons need 3:1 (WCAG 1.4.11) and text 4.5:1 (1.4.3).
 
@@ -97,9 +97,10 @@ The browser test drives a real composition through the DevTools protocol (`Input
 
 ## Design pass
 
-An Impeccable critique scored the landing page 24/32 and the board 24/40, as two independent assessments: a design review, and a detector with browser evidence. The snapshots are in `.impeccable/critique/`. The owner chose to fix P0 to P2, keep the brand as it is, and protect card deletion with an undo.
+An Impeccable critique scored the landing page 24/32 and the board 24/40, as two independent assessments: a design review, and a detector with browser evidence. Impeccable keeps its snapshots locally, outside the repository; the findings that mattered are recorded here. The owner chose to fix P0 to P2, keep the brand as it is, and protect card deletion with an undo.
 
 **Board:**
+
 - **P0: on touch screens, the card's hidden buttons could be tapped.** The toolbar is shown on hover, which touch screens do not have. While hidden, it was invisible but still caught taps: a tap at a card's top right corner deleted it for everyone.
   - The toolbar now takes no pointer events while hidden.
   - A tap on a card opens it. dnd-kit needs a 250 ms rest before a touch drag, so a quick tap is never a drag.
@@ -115,9 +116,10 @@ An Impeccable critique scored the landing page 24/32 and the board 24/40, as two
   - The width is fixed rather than changing with the window, on purpose. A pointer over the bare board is sent in pixels from the board's corner (`0003`). A responsive width put it 64 pixels off on a narrower screen, and a test caught it.
 
 **Landing page:**
+
 - **P1: on a phone, the hero now waits until both screens are in view before it plays.** Before, the second screen, where the sync shows, was below the fold, and the story was over before anyone scrolled to it.
 - **P1: larger words in the drawings.**
-  - Tags: 6.5 to 7.5 units.
+  - Tags: 6.5 to 7 units. 7.5 was tried and ran past the column's edge.
   - Pointer names: 7.5 to 8.5 units.
   - Avatar initials: 6.5 to 7.5 units.
 - **P2: a closing call to action.** "See it for yourself", with "Open the demo board".
@@ -125,11 +127,75 @@ An Impeccable critique scored the landing page 24/32 and the board 24/40, as two
 - **P3: the demo link has one label everywhere.**
 
 **Left for later**, recorded in `CLAUDE.md`:
+
 - The brand (the owner's choice).
 - A "Replay" for the hero.
 - A step indicator in the tour.
 - Scroll snapping between columns on a phone.
 
+## Lighthouse accessibility
+
+Lighthouse 13.6.0 ran on a production build served by `next start`, with the local sync server running so that `/demo` shows the board. It ran with `--only-categories=accessibility`, in its default mobile mode and with `--preset=desktop`.
+
+| Page    | Mobile | Desktop |
+| ------- | ------ | ------- |
+| `/`     | 100    | 100     |
+| `/demo` | 100    | 100     |
+
+The full-page screenshot in the `/demo` report shows the loaded board, not the loading state.
+
 ## Performance: 200 and 500 cards
 
-(Filled in below.)
+### How it was measured
+
+`apps/web/e2e/perf.spec.ts`, as in 0004, extended:
+
+```bash
+PERF=1 pnpm --filter @syncboard/web exec playwright test e2e/perf.spec.ts
+```
+
+- **Boards.** `test-large-*` has 200 cards (4 columns of 50). `test-huge-*` has 500 (5 columns of 100). The test sync server seeds both.
+- **CPU.** Each board is measured as the machine is, and again with Chrome's CPU slowed 4 times (`Emulation.setCPUThrottlingRate`), which stands in for a mid-range phone.
+- **A mouse drag**, as in 0004: one card carried across two columns in 180 steps over about 3 seconds, at 1600 by 900. It records frames per second, frames missed (a gap over 25 ms), and long tasks (over 50 ms) at pick-up, while carried, and at the drop.
+- **A keyboard drag**: Space, ArrowRight twice, Space, 600 ms apart. The browser's Event Timing API times each key press from input to the next frame drawn after handling it. That is the measure behind Interaction to Next Paint (INP), where 200 ms or less is "good".
+- **Playwright's own trace is off for this file.** In the first runs it copied the whole page into a snapshot on every one of the 180 mouse steps, in the page's main thread. With 500 cards that was two thirds of all the work recorded. 0004's numbers carried a little of it too ("18 ms of test tooling").
+- **Machine:** Intel Core i5-13420H, 16 GB, Windows 11, on mains power, Playwright's headless Chromium.
+  - On battery the same runs took about four times as long, and every number was worse. An A/B under battery power showed the branch and `main` alike: 200 cards at 58.2 and 58.9 frames a second, 500 at 53.2 and 52.2. So nothing in M8 slowed the drag down.
+
+### Results
+
+Three runs of each, on mains power, after all M8 changes:
+
+| Cards | CPU | Frames per second | Frames missed | Pick-up task  | Long tasks while carried | Worst key press  |
+| ----- | --- | ----------------- | ------------- | ------------- | ------------------------ | ---------------- |
+| 200   | 1x  | 60.0, 60.0, 60.0  | 0, 0, 0       | none          | none                     | 24, 16, 16 ms    |
+| 500   | 1x  | 59.7, 59.7, 59.7  | 1, 2, 2       | 52 to 53 ms   | none                     | 32, 32, 32 ms    |
+| 200   | 4x  | 58.7, 58.6, 58.1  | 2, 3, 8       | 128 to 144 ms | 2 (up to 151 ms)         | 88, 80, 160 ms   |
+| 500   | 4x  | 52.5, 53.6, 47.9  | 61, 60, 103   | 263 to 276 ms | 5 to 28 (up to 291 ms)   | 192, 192, 456 ms |
+
+### What this means
+
+- **The M8 check is met.** Measured the way 0004 measured 200 cards (no throttling), a 500-card board holds 59.7 frames a second while a card is dragged. Picking up costs one 53 ms task, and no key press took longer than 32 ms.
+- **200 cards is at least as good as in 0004.** No task reached 50 ms at pick-up, while carried, or at the drop, and no gap between frames exceeded 25 ms in three runs. 0004 counted 3 to 7 dropped frames per run, at pick-up and at each column crossed. The two counts are not the same measure: 0004 used Chrome's own `DroppedFrame` events, this record uses gaps between animation frames. Part of 0004's cost was Playwright's trace in the page.
+- **At 4x slowdown, 200 cards stays fluid** at 58 to 59 frames a second, and key presses stay under 200 ms.
+- **500 cards at 4x is where it strains:**
+  - It drags at 48 to 54 frames a second.
+  - Picking up takes a quarter of a second.
+  - One key press in twelve took over 200 ms (456 ms at worst, a drop).
+- **Where the time goes at 4x.** A CPU profile of the carried part of the drag (`PERF_PROFILE=1`) shows the app's own JavaScript, dnd-kit's included, at a few percent. Most of the time is the browser's own work:
+  - Compositing the held card as it moves.
+  - dnd-kit's IntersectionObserver pair per droppable (a thousand observers for 500 cards).
+  - Hit-testing (`elementFromPoint`).
+
+  The next step, if bigger boards matter, is fewer droppables during a drag. Columns could render only the cards in view, but dnd-kit's sortable lists make virtualising hard. Recorded in `CLAUDE.md` under "Open items".
+
+- **A bug was found on the way.** `DragDropProvider` takes `plugins` and `sensors` as a list or as a function of the defaults. A function is called on every render and its result compared by identity, so every board update handed a new list to every draggable.
+  - The first version of the announcer passed functions.
+  - The "slides into place" motion test caught it: a remote reorder's first frame came about 100 ms late.
+  - Both are now module constants.
+
+## Not covered
+
+- A real phone, and a real screen reader (VoiceOver, NVDA): both before the public launch in M9.
+- Boards beyond 500 cards.
+- A drag while someone else changes the board.
